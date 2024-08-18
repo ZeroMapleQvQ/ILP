@@ -1,20 +1,26 @@
+# -*- encoding: utf-8 -*-
+'''
+@File    :   novel_scraper.py
+@Time    :   2024/08/18 14:57:29
+@Author  :   ZeroMaple
+@Contact :   LingYingQvQ@gmail.com
+'''
+
 import re
 import time
 import click
 import hashlib
 import logging
-# import argparse
 import requests
 import threading
 import fake_useragent
 from pathlib import Path
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed, Future
-from typing import Callable, List, Tuple, Optional, Dict
+from typing import Callable, List, Tuple
 
 from utils.fanqie_decode import dec
 from config import Config
-# from download import download_image
 from log import Logger
 from db import DB
 
