@@ -1,0 +1,16 @@
+__pycache__/
+
+# Pyinstaller
+build/
+dist/
+*.spec
+
+spiders/
+.VSCodeCounter/
+test*
+*.db
+tempCodeRunnerFile.py
+font*
+GUI.py
+main.py
+map.json
