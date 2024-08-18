@@ -27,16 +27,19 @@
 ### 从源代码构建/运行
 
 #### 运行
-
 1. 克隆本项目`git clone https://github.com/ZeroMapleQvQ/novel_scraper`
-2. 安装依赖`pip install -r requirements.txt`
-3. 运行`python novel_scraper.py --help`获取帮助信息
-4. 
+2. 切换到项目目录`cd novel_scraper`
+3. 安装依赖`pip install -r requirements.txt`
+4. 运行`python novel_scraper.py --help`获取帮助信息
+
 #### 编译
 1. 克隆本项目`git clone https://github.com/ZeroMapleQvQ/novel_scraper`
-2. 安装依赖`pip install -r requirements.txt`
-3. 安装Pyinstaller`pip install pyinstaller`
-4. 执行`pyinstaller -F novel_scraper.py`进行编译
+2. 切换到项目目录`cd novel_scraper`
+3. 安装依赖`pip install -r requirements.txt`
+4. 安装Pyinstaller`pip install pyinstaller`
+5. 执行`pyinstaller -F novel_scraper.py`进行编译
+6. 切换到dist目录`cd ./dist`
+7. 运行`novel_scraper.exe --help`获取帮助信息
 
 ### 使用二进制文件(Windows Only)
 1. 从Github release下载可执行文件
