@@ -1,11 +1,12 @@
 # -*- encoding: utf-8 -*-
 '''
-@File    :   novel_scraper.py
+@File    :   ILP.py
 @Time    :   2024/08/18 14:57:29
 @Author  :   ZeroMaple
 @Contact :   LingYingQvQ@gmail.com
 '''
 
+import os
 import re
 import time
 import click
@@ -23,10 +24,13 @@ from utils.fanqie_decode import dec
 from config import Config
 from log import Logger
 from db import DB
+from utils.utils import show_banner, set_title
 
 
 class NovelScraper:
     def __init__(self, id, alias=None):
+        show_banner()
+        set_title()
         logging.getLogger("requests").setLevel(logging.ERROR)
         logging.getLogger("urllib3").setLevel(logging.ERROR)
 
@@ -147,7 +151,7 @@ class NovelScraper:
             self.logger.info(f"{self.title} 下载失败！")
 
     def fetch_chapter(self, index: int, download_list: List[str]) -> None:
-        ...
+        set_title(f"ILP - {self.title} - {download_list[index]}")
 
 
 class QidianScraper(NovelScraper):
@@ -212,6 +216,7 @@ class QidianScraper(NovelScraper):
         return self.author
 
     def fetch_chapter(self, index: int, download_list: List[str]) -> None:
+        super().fetch_chapter(index, download_list)
         db = DB(self.DB_PATH)
 
         output_front = f"("+str(index+1)+"/" + str(self.download_length)+")"
@@ -303,6 +308,7 @@ class FanqieScraper(NovelScraper):
         return self.author
 
     def fetch_chapter(self, index: int, download_list: List[str]) -> None:
+        super().fetch_chapter(index, download_list)
         from utils.fanqie_decode import dec
         db = DB(self.DB_PATH)
 
@@ -422,9 +428,9 @@ if __name__ == "__main__":
     # print(qidian.check_downloaded())
     # qidian.get_chapter(multi_thread=True)
     # %%
-    # fanqie = FanqieScraper(7122740304741927939)
+    fanqie = FanqieScraper(7122740304741927939)
     # print(fanqie.get_author())
-    # fanqie.get_chapter(multi_thread=False)
+    fanqie.get_chapter(multi_thread=True)
     # fanqie.get_index()
     # fanqie.test()
-    main()
+    # main()

@@ -6,6 +6,7 @@ dist/
 *.spec
 
 spiders/
+data/
 .VSCodeCounter/
 test*
 *.db
