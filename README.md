@@ -7,7 +7,7 @@
     - [x] 标题
     - [x] 正文
     - [x] 作者
-    - [ ] 封面
+    - [x] 封面
 - [ ] [飞卢小说](https://faloo.com "飞卢小说")
     - [x] 标题
     - [ ] 正文
@@ -33,6 +33,8 @@
 4. 运行`python novel_scraper.py --help`获取帮助信息
 
 #### 编译
+**重要: 请使用与开发环境一致的Python版本(>=3.12)**
+
 1. 克隆本项目`git clone https://github.com/ZeroMapleQvQ/novel_scraper`
 2. 切换到项目目录`cd novel_scraper`
 3. 安装依赖`pip install -r requirements.txt`
