@@ -47,6 +47,69 @@
 1. 从Github release下载可执行文件
 2. 运行`novel_scraper.exe --help`获取帮助信息
 
+### 命令行参数
+```
+Usage: novel_scraper.py [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --multi_thread BOOLEAN  是否使用多线程
+  --help                  Show this message and exit.
+
+Commands:
+  decode
+  download
+  get-author
+  get-index
+```
+#### decode
+解码加密的番茄免费小说章节
+```
+Usage: novel_scraper.py decode [OPTIONS]
+
+Options:
+  -t, --title TEXT           小说标题  [required]
+  -ct, --chapter_title TEXT  小说章节标题,默认为全部
+  --help                     Show this message and exit.
+```
+
+#### download
+获取小说
+```
+Usage: novel_scraper.py download [OPTIONS]
+
+Options:
+  -i, --id TEXT               小说ID  [required]
+  -s, --site [fanqie|qidian]  站点名称  [required]
+  --help                      Show this message and exit.
+```
+
+#### get-author
+获取作者信息
+```
+Usage: novel_scraper.py get-author [OPTIONS]
+
+Options:
+  -i, --id TEXT               小说ID  [required]
+  -s, --site [fanqie|qidian]  站点名称  [required]
+  --help                      Show this message and exit.
+```
+
+#### get-index
+获取小说目录并缓存到数据库, 支持导出为csv/json/txt文件
+
+(txt格式还在制作中, 暂不可用)
+```
+Usage: novel_scraper.py get-index [OPTIONS]
+
+Options:
+  -i, --id TEXT                   小说ID  [required]
+  -s, --site [fanqie|qidian]      站点名称  [required]
+  -op, --out_put_path TEXT        输出到文件
+  -ot, --out_put_type [txt|json|csv]
+                                  输出格式
+  --help                          Show this message and exit.
+```
+
 ## 注意事项
 - 请不要滥用本程序, 且用且珍惜
 - 用户使用本程序造成的一切后果请自行承担

@@ -342,17 +342,18 @@ def main(**kwargs) -> None:
 
 
 @main.command()
+@click.option("--id", "-i", default=None, required=True, help="小说ID")
+@click.option("--site", "-s", default=None, required=True, help="站点名称", type=click.Choice(cfg.sites))
 def download(**kwargs):
-    print(1)
+    exec = Exec(kwargs=kwargs)
+    exec_func = getattr(exec, kwargs["site"])()
+    exec_func.get_chapter()
 
 
-@main.command()
-@click.option("--title", "-t", default=None, help="小说标题")
-@click.option("--chapter_title", "-ct", default="all", help="小说章节标题,默认为全部")
+@ main.command()
+@ click.option("--title", "-t", default=None, required=True, help="小说标题")
+@ click.option("--chapter_title", "-ct", default="all", help="小说章节标题,默认为全部")
 def decode(**kwargs):
-    if kwargs["title"] == None:
-        print("请指定小说标题")
-        return
     if kwargs["chapter_title"] == "all":
         chapter_title_list = []
         file_list = Path(
@@ -367,18 +368,12 @@ def decode(**kwargs):
             novels_path=cfg.NOVELS_PATH, novels_new_path=cfg.NOVELS_PATH)
 
 
-@main.command()
-@click.option("--id", "-i", default=None, help="小说ID")
-@click.option("--site", "-s", default=None, help="站点名称", type=click.Choice(cfg.sites))
-@click.option("--out_put_path", "-op", default=None, help="输出到文件")
-@click.option("--out_put_type", "-ot", default=None, help="输出格式", type=click.Choice(["txt", "json", "csv"]))
+@ main.command()
+@ click.option("--id", "-i", default=None, required=True, help="小说ID")
+@ click.option("--site", "-s", default=None, required=True, help="站点名称", type=click.Choice(cfg.sites))
+@ click.option("--out_put_path", "-op", default=None, help="输出到文件")
+@ click.option("--out_put_type", "-ot", default=None, help="输出格式", type=click.Choice(["txt", "json", "csv"]))
 def get_index(**kwargs):
-    if kwargs["site"] == None:
-        print("请指定站点名称")
-        return
-    if kwargs["id"] == None:
-        print("请指定小说ID")
-        return
     exec = Exec(kwargs=kwargs)
     exec_func = getattr(exec, kwargs["site"])()
     if kwargs["out_put_path"] == None and kwargs["out_put_type"] == None:
@@ -392,16 +387,10 @@ def get_index(**kwargs):
         print("输出路径和输出格式必须都指定或都不指定")
 
 
-@main.command()
-@click.option("--id", "-i", default=None, help="小说ID")
-@click.option("--site", "-s", default=None, help="站点名称", type=click.Choice(cfg.sites))
+@ main.command()
+@ click.option("--id", "-i", default=None, required=True, help="小说ID")
+@ click.option("--site", "-s", default=None, required=True, help="站点名称", type=click.Choice(cfg.sites))
 def get_author(**kwargs):
-    if kwargs["site"] == None:
-        print("请指定站点名称")
-        return
-    if kwargs["id"] == None:
-        print("请指定小说ID")
-        return
     exec = Exec(kwargs=kwargs)
     exec_func = getattr(exec, kwargs["site"])()
     author = exec_func.get_author()
