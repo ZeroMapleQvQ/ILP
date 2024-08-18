@@ -1,0 +1,4 @@
+beautifulsoup4==4.12.3
+click==8.1.7
+fake_useragent==1.5.1
+Requests==2.32.3
