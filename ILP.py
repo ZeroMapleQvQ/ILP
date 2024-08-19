@@ -412,7 +412,7 @@ def download(**kwargs):
         exec_func = getattr(exec, kwargs["site"])()
         asyncio.run(exec_func.get_chapter())
     except KeyboardInterrupt:
-        print("正在退出")
+        tqdm.write("正在退出")
 
 
 @ main.command()
@@ -475,8 +475,8 @@ class Exec:
 
 if __name__ == "__main__":
     # %%
-    qidian = QidianScraper(1041092118)
-    print(qidian.get_picture())
+    # qidian = QidianScraper(1041092118)
+    # print(qidian.get_picture())
     # qidian.get_index()
     # print(qidian.get_author())
     # print(qidian.get_index())
@@ -487,4 +487,4 @@ if __name__ == "__main__":
     # print(fanqie.get_author())
     # asyncio.run(fanqie.get_chapter())
     # fanqie.test()
-    # main()
+    main()
