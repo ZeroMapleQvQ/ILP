@@ -167,8 +167,6 @@ class QidianScraper(NovelScraper):
         self.index_page_text = self.get_index_page()
         self.title_page_text = self.get_title_page()
 
-        # self.HEADERS = {"User-Agent": fake_useragent.UserAgent().random}
-
     def get_title_page(self):
         self.title_page_text = requests.get(
             self.title_url, headers=self.HEADERS).text
@@ -263,8 +261,6 @@ class QidianScraper(NovelScraper):
                         output_front, output_behind))
                     self.logger.info(f"开始爬取 {self.title}:{chapter_title}")
 
-                    # chapter_get = requests.get(
-                    #     self.index_chapter_url_list[index], headers=self.HEADERS)
                     soup = BeautifulSoup(chapter_get, "html.parser")
                     p = soup.find_all("p", class_=False)
                     chapter_text = [i.text for i in p]
@@ -363,7 +359,9 @@ class FanqieScraper(NovelScraper):
                     output_front = f"("+str(index+1)+"/" + \
                         str(self.download_length)+")"
                     output_behind = "正在爬取 "+self.title+":"+chapter_title+" 中..."
-                    print("{:<15} {:}".format(output_front, output_behind))
+                    tqdm.write("{:<15} {:}".format(
+                        output_front, output_behind))
+                    # print("{:<15} {:}".format(output_front, output_behind))
                     self.logger.info(f"开始爬取 {self.title}:{chapter_title}")
                     chapter_json = await response.json()
                     soup = BeautifulSoup(
@@ -383,6 +381,7 @@ class FanqieScraper(NovelScraper):
                                     chapter_main, chapter_title)
                     dec(chapter_title, self.title, log_path=self.LOGS_PATH,
                         novels_path=self.NOVELS_PATH, novels_new_path=self.NOVELS_PATH)
+                    self.progress_bar.update(1)
                     time.sleep(self.SLEEP_TIME)
 
 
@@ -390,10 +389,6 @@ cfg = Config("./config.json")
 
 
 @ click.group()
-# @click.option("--id", "-i", default=None, help="小说ID")
-# @click.option("--alias", "-a", default=None, help="小说别名")
-# @click.option("--site", "-s", default=None, help="站点名称", type=click.Choice(cfg.sites))
-# @click.option("--multi_thread", required=False, default=True, help="是否使用多线程")
 def main(**kwargs) -> None:
     ...
 
