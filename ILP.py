@@ -24,6 +24,7 @@ from bs4 import BeautifulSoup
 # from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 from typing import Callable, List, Tuple
 
+from download import download_image
 from utils.fanqie_decode import dec
 from config import Config
 from log import Logger
@@ -183,7 +184,6 @@ class QidianScraper(NovelScraper):
     def get_index(self, export_path=None, export_type=None):
         super().get_index()
         if self.db.is_table_empty(self.title):
-            # if True:
             soup = BeautifulSoup(self.index_page_text, "html.parser")
 
             title_list = soup.find_all("h2")
@@ -241,6 +241,15 @@ class QidianScraper(NovelScraper):
             "a", class_="detail__header-detail__author-link").text
         self.author = re.sub(r"作者：|级别：|Lv.\d+|\s", "", self.author)
         return self.author
+
+    def get_picture(self):
+        self.get_title()
+        soup = BeautifulSoup(self.title_page_text, "html.parser")
+        img = soup.find("img", {"class": "detail__header-cover__img"})
+        self.picture_url = "https:" + img["src"]
+        path = Path(f"{self.POSTERS_PATH}/{self.title}.png")
+        download_image(self.picture_url, path)
+        return self.picture_url
 
     async def fetch_chapter(self, index: int) -> None:
         await super().fetch_chapter(index)
@@ -467,14 +476,14 @@ class Exec:
 if __name__ == "__main__":
     # %%
     qidian = QidianScraper(1041092118)
+    print(qidian.get_picture())
     # qidian.get_index()
     # print(qidian.get_author())
     # print(qidian.get_index())
     # print(qidian.check_downloaded())
-    asyncio.run(qidian.get_chapter())
+    # asyncio.run(qidian.get_chapter())
     # %%
     # fanqie = FanqieScraper(7122740304741927939)
-    # print(fanqie.is_downloaded("第40章 「黑石修道院」滑索上的生物"))
     # print(fanqie.get_author())
     # asyncio.run(fanqie.get_chapter())
     # fanqie.test()
