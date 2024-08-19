@@ -8,23 +8,27 @@
 
 import os
 import re
+import sys
 import time
 import click
-import hashlib
+import asyncio
+import aiohttp
 import logging
 import requests
+import functools
 import threading
 import fake_useragent
+from tqdm import tqdm
 from pathlib import Path
 from bs4 import BeautifulSoup
-from concurrent.futures import ThreadPoolExecutor, as_completed, Future
+# from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 from typing import Callable, List, Tuple
 
 from utils.fanqie_decode import dec
 from config import Config
 from log import Logger
 from db import DB
-from utils.utils import show_banner, set_title
+from utils.utils import show_banner, set_title, listen_error, string_to_md5
 
 
 class NovelScraper:
@@ -56,16 +60,13 @@ class NovelScraper:
         self.thread_lock = threading.Lock()
         self._cancel_event = threading.Event()
         self.executor = None
+        self.sem = asyncio.Semaphore(self.MAX_WORKERS)
 
     def get_index_page(self):
-        self.index_page_text = requests.get(
-            self.index_url, headers=self.HEADERS).text
+        if not self.index_page_text:
+            self.index_page_text = requests.get(
+                self.index_url, headers=self.HEADERS).text
         return self.index_page_text
-
-    def string_to_md5(self, string):
-        md5 = hashlib.md5()
-        md5.update(string.encode("utf-8"))
-        return md5.hexdigest()
 
     def get_title(self):
         ...
@@ -92,6 +93,15 @@ class NovelScraper:
         self.get_index_page()
         self.author = ""
 
+    def is_downloaded(self, chapter_title):
+        self.get_title()
+        path = Path(f"{self.NOVELS_PATH}/{self.title}")
+        files = path.glob("*.txt")
+        for file in files:
+            if file.stem == chapter_title:
+                return True
+        return False
+
     def check_full(self):
         self.get_title()
         self.get_index()
@@ -100,12 +110,6 @@ class NovelScraper:
             return True
         else:
             return False
-
-    def exec_multi_thread(self, task_func: Callable, task_args_list: List[Tuple]) -> List[Future]:
-        with ThreadPoolExecutor(max_workers=self.MAX_WORKERS) as executor:
-            futures = [executor.submit(task_func, *args)
-                       for args in task_args_list]
-            return futures
 
     def save_novel(self, title, chapter, chapter_title):
         novels_path = Path(self.NOVELS_PATH)
@@ -116,76 +120,98 @@ class NovelScraper:
         with open(f"{final_path}", "w", encoding="utf-8") as f:
             f.write(chapter)
 
-    def get_chapter(self, multi_thread: bool = True) -> None:
+    async def get_chapter(self, multi_thread: bool = True) -> None:
         self.get_index()
         self.logger = Logger(f"{self.LOGS_PATH}/{self.title}.log")
         downloaded_files = Path(
             f"{self.NOVELS_PATH}/{self.title}").glob("*.txt")
         downloaded_chapters = [file.stem for file in downloaded_files]
 
-        download_list = [
-            chapter for chapter in self.index_chapter_title_list if chapter not in downloaded_chapters]
+        # download_list = [
+        #     chapter for chapter in self.index_chapter_title_list if chapter not in downloaded_chapters]
+        download_list = self.index_chapter_title_list
         download_length = len(download_list)
         self.download_length = download_length
+        self.download_list = download_list
 
-        if download_length == 0:
+        if self.check_full() == True:
             print("所有章节已下载！")
             self.logger.info("所有章节已下载！")
             return
 
-        if multi_thread:
-            task_args_list = [(i, download_list)
-                              for i in range(download_length)]
-            futures = self.exec_multi_thread(
-                self.fetch_chapter, task_args_list)
-            for future in as_completed(futures):
-                future.result()
-        elif not multi_thread:
-            for i in range(download_length):
-                self.fetch_chapter(i, download_list=download_list)
-        if self.check_full() == True:
-            print(f"{self.title} 下载完成！")
-            self.logger.info(f"{self.title} 下载完成！")
-        else:
-            print(f"{self.title} 下载失败！")
-            self.logger.info(f"{self.title} 下载失败！")
+        self.progress_bar = tqdm(total=download_length,
+                                 desc=f"{self.title} - 下载进度", unit="章")
+        self.progress_bar.update(0)
 
-    def fetch_chapter(self, index: int, download_list: List[str]) -> None:
-        set_title(f"ILP - {self.title} - {download_list[index]}")
+        tasks = [self.fetch_chapter(i) for i in range(download_length)]
+        await asyncio.gather(*tasks)
+        # if self.check_full() == True:
+        #     print(f"{self.title} 下载完成！")
+        #     self.logger.info(f"{self.title} 下载完成！")
+        # else:
+        #     print(f"{self.title} 下载失败！")
+        #     self.logger.info(f"{self.title} 下载失败！")
+
+    async def fetch_chapter(self, index: int) -> None:
+        set_title(f"ILP - {self.title} - {self.download_list[index]}")
+        if self.is_downloaded(self.download_list[index]):
+            return
 
 
 class QidianScraper(NovelScraper):
     def __init__(self, id, alias=None):
         super().__init__(id, alias)
-        self.base_url = "https://www.qidian.com/"
-        self.index_url = f"https://book.qidian.com/info/{id}/#Catalog"
+        self.base_url = "https://m.qidian.com"
+        self.title_url = f"{self.base_url}/book/{self.id}"
+        self.index_url = f"{self.base_url}/book/{self.id}/catalog"
         self.index_page_text = self.get_index_page()
+        self.title_page_text = self.get_title_page()
+
+        # self.HEADERS = {"User-Agent": fake_useragent.UserAgent().random}
+
+    def get_title_page(self):
+        self.title_page_text = requests.get(
+            self.title_url, headers=self.HEADERS).text
+        return self.title_page_text
 
     def get_title(self):
         if self.title == None:
-            soup = BeautifulSoup(self.index_page_text, "html.parser")
-            self.title = soup.find(id="bookName").text
-        return self.title
+            soup = BeautifulSoup(self.title_page_text, "html.parser")
+            self.title = soup.find("h1").text
+            return self.title
+        else:
+            return self.title
 
     def get_index(self, export_path=None, export_type=None):
         super().get_index()
         if self.db.is_table_empty(self.title):
-            index_page = requests.get(self.index_url, headers=self.HEADERS)
-            soup = BeautifulSoup(index_page.text, "html.parser")
-            index_list = soup.select("h2 > a")
-            for index in range(len(index_list)):
-                chapter_title = index_list[index].get_text()
-                chapter_url = "https:" + index_list[index].get("href")
-                chapter_md5_id = self.string_to_md5(chapter_url)
-                chapter_id = re.sub(
-                    rf"https://www.qidian.com/chapter/{self.id}/", "", chapter_url).strip("/")
+            # if True:
+            soup = BeautifulSoup(self.index_page_text, "html.parser")
+
+            title_list = soup.find_all("h2")
+            self.index_chapter_title_list = [
+                i.text for i in title_list if i.text.strip() != ""]
+
+            url_list = soup.find_all("a", {"data-showeid": "mqd_R127"})
+            self.index_chapter_url_list = [
+                ("https:"+i["href"]).strip("/") for i in url_list]
+
+            self.index_chapter_md5_id_list = [
+                string_to_md5(i) for i in self.index_chapter_url_list]
+
+            self.index_chapter_id_list = [
+                i.split("/")[-1] for i in self.index_chapter_url_list]
+
+            self.index_chapter_sum_list = [
+                None for _ in self.index_chapter_title_list]
+
+            for i in range(len(self.index_chapter_title_list)):
+                chapter_md5_id = self.index_chapter_md5_id_list[i]
+                chapter_id = self.index_chapter_id_list[i]
+                chapter_title = self.index_chapter_title_list[i]
+                chapter_url = self.index_chapter_url_list[i]
                 self.db.insert_data(self.title, chapter_md5_id, chapter_id, chapter_title,
                                     chapter_url, None)
-                self.index_chapter_md5_id_list.append(chapter_md5_id)
-                self.index_chapter_id_list.append(chapter_id)
-                self.index_chapter_title_list.append(chapter_title)
-                self.index_chapter_url_list.append(chapter_url)
-                self.index_chapter_sum_list.append(None)
                 self.index_chapter_list.append(
                     [chapter_md5_id, chapter_id, chapter_title, chapter_url, None])
         elif self.db.is_table_empty(self.title) == None:
@@ -211,35 +237,50 @@ class QidianScraper(NovelScraper):
 
     def get_author(self) -> str:
         super().get_author()
-        soup = BeautifulSoup(self.index_page_text, "html.parser")
-        self.author = soup.find("a", class_="writer").text
+        self.get_title_page()
+        soup = BeautifulSoup(self.title_page_text, "html.parser")
+        self.author = soup.find(
+            "a", class_="detail__header-detail__author-link").text
+        self.author = re.sub(r"作者：|级别：|Lv.\d+|\s", "", self.author)
         return self.author
 
-    def fetch_chapter(self, index: int, download_list: List[str]) -> None:
-        super().fetch_chapter(index, download_list)
+    async def fetch_chapter(self, index: int) -> None:
+        await super().fetch_chapter(index)
         db = DB(self.DB_PATH)
 
-        output_front = f"("+str(index+1)+"/" + str(self.download_length)+")"
-        output_behind = "正在爬取 "+self.title+":"+download_list[index]+" 中..."
-        print("{:<15} {:}".format(output_front, output_behind))
-        self.logger.info(f"开始爬取 {self.title}:{download_list[index]}")
+        chapter_title = self.download_list[index]
 
-        chapter_get = requests.get(
-            self.index_chapter_url_list[index], headers=self.HEADERS)
-        soup = BeautifulSoup(chapter_get.text, "html.parser")
-        p = soup.find_all("p", class_=False)
-        chapter_text = [i.text for i in p]
-        chapter_head = download_list[index] + "\n---\n\n"
-        chapter_main = "\n".join(chapter_text)
-        chapter_main = re.sub(r"\u3000", r"", chapter_main)
-        chapter_sum = len(chapter_main)
-        self.index_chapter_list[index][3] = chapter_sum
-        chapter_md5 = self.string_to_md5(self.index_chapter_url_list[index])
-        db.update_data(
-            self.title, "chapter_sum", chapter_sum, "id", chapter_md5)
-        self.save_novel(self.title, chapter_head +
-                        chapter_main, download_list[index])
-        time.sleep(self.SLEEP_TIME)
+        async with self.sem:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(self.index_chapter_url_list[index], headers=self.HEADERS) as response:
+                    chapter_get = await response.text()
+                    output_front = f"("+str(index+1)+"/" + \
+                        str(self.download_length)+")"
+                    output_behind = "正在爬取 "+self.title + \
+                        ":"+chapter_title+" 中..."
+                    # print("{:<15} {:}".format(output_front, output_behind))
+                    tqdm.write("{:<15} {:}".format(
+                        output_front, output_behind))
+                    self.logger.info(f"开始爬取 {self.title}:{chapter_title}")
+
+                    # chapter_get = requests.get(
+                    #     self.index_chapter_url_list[index], headers=self.HEADERS)
+                    soup = BeautifulSoup(chapter_get, "html.parser")
+                    p = soup.find_all("p", class_=False)
+                    chapter_text = [i.text for i in p]
+                    chapter_head = chapter_title + "\n---\n\n"
+                    chapter_main = "\n".join(chapter_text)
+                    chapter_main = re.sub(r"\u3000", r"", chapter_main)
+                    chapter_sum = len(chapter_main)
+                    # self.index_chapter_list[index][self.chapter_sum_slice] = chapter_sum
+                    chapter_md5 = string_to_md5(
+                        self.index_chapter_url_list[index])
+                    db.update_data(
+                        self.title, "chapter_sum", chapter_sum, "md5_id", chapter_md5)
+                    self.save_novel(self.title, chapter_head +
+                                    chapter_main, chapter_title)
+                    self.progress_bar.update(1)
+                    await asyncio.sleep(self.SLEEP_TIME)
 
 
 class FanqieScraper(NovelScraper):
@@ -270,7 +311,7 @@ class FanqieScraper(NovelScraper):
                 chapter_id = re.sub(
                     r"https://fanqienovel.com/reader/", "", chapter_url).strip("/")
                 # print(chapter_id)
-                chapter_md5_id = self.string_to_md5(chapter_url)
+                chapter_md5_id = string_to_md5(chapter_url)
                 self.db.insert_data(self.title, chapter_md5_id, chapter_id, chapter_title,
                                     chapter_url, None)
                 self.index_chapter_md5_id_list.append(chapter_md5_id)
@@ -307,59 +348,67 @@ class FanqieScraper(NovelScraper):
         self.author = soup.find("span", class_="author-name-text").text
         return self.author
 
-    def fetch_chapter(self, index: int, download_list: List[str]) -> None:
-        super().fetch_chapter(index, download_list)
+    async def fetch_chapter(self, index: int) -> None:
+        await super().fetch_chapter(index)
+
+        chapter_title = self.download_list[index]
+
         from utils.fanqie_decode import dec
         db = DB(self.DB_PATH)
+        cookie = {"novel_web_id": "7357767624615331362"}
 
-        chapter_title = download_list[index]
-
-        output_front = f"("+str(index+1)+"/" + str(self.download_length)+")"
-        output_behind = "正在爬取 "+self.title+":"+chapter_title+" 中..."
-        print("{:<15} {:}".format(output_front, output_behind))
-        self.logger.info(f"开始爬取 {self.title}:{chapter_title}")
-
-        chapter_get = requests.get(
-            f"{self.api_url}{self.index_chapter_id_list[index]}", headers=self.HEADERS, cookies={"novel_web_id": "7357767624615331362"})
-        chapter_json = chapter_get.json()
-        soup = BeautifulSoup(
-            chapter_json["data"]["chapterData"]["content"], "html.parser")
-        p = soup.find_all("p", class_=False)
-        chapter_text = [i.text for i in p]
-        chapter_main = "\n".join(chapter_text)
-        chapter_main = re.sub(r"\u3000", r"", chapter_main)
-        chapter_head = chapter_title + "\n---\n\n"
-        chapter_sum = chapter_json["data"]["chapterData"]["chapterWordNumber"]
-        self.index_chapter_list[index][self.chapter_sum_slice] = chapter_sum
-        chapter_md5 = self.string_to_md5(self.index_chapter_url_list[index])
-        db.update_data(
-            self.title, "chapter_sum", chapter_sum, "md5_id", chapter_md5)
-        self.save_novel(self.title, chapter_head +
-                        chapter_main, chapter_title)
-        dec(chapter_title, self.title, log_path=self.LOGS_PATH,
-            novels_path=self.NOVELS_PATH, novels_new_path=self.NOVELS_PATH)
-        time.sleep(self.SLEEP_TIME)
+        async with self.sem:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{self.api_url}{self.index_chapter_id_list[index]}", headers=self.HEADERS, cookies={"novel_web_id": "7357767624615331362"}) as response:
+                    output_front = f"("+str(index+1)+"/" + \
+                        str(self.download_length)+")"
+                    output_behind = "正在爬取 "+self.title+":"+chapter_title+" 中..."
+                    print("{:<15} {:}".format(output_front, output_behind))
+                    self.logger.info(f"开始爬取 {self.title}:{chapter_title}")
+                    chapter_json = await response.json()
+                    soup = BeautifulSoup(
+                        chapter_json["data"]["chapterData"]["content"], "html.parser")
+                    p = soup.find_all("p", class_=False)
+                    chapter_text = [i.text for i in p]
+                    chapter_main = "\n".join(chapter_text)
+                    chapter_main = re.sub(r"\u3000", r"", chapter_main)
+                    chapter_head = chapter_title + "\n---\n\n"
+                    chapter_sum = chapter_json["data"]["chapterData"]["chapterWordNumber"]
+                    self.index_chapter_list[index][self.chapter_sum_slice] = chapter_sum
+                    chapter_md5 = string_to_md5(
+                        self.index_chapter_url_list[index])
+                    db.update_data(
+                        self.title, "chapter_sum", chapter_sum, "md5_id", chapter_md5)
+                    self.save_novel(self.title, chapter_head +
+                                    chapter_main, chapter_title)
+                    dec(chapter_title, self.title, log_path=self.LOGS_PATH,
+                        novels_path=self.NOVELS_PATH, novels_new_path=self.NOVELS_PATH)
+                    time.sleep(self.SLEEP_TIME)
 
 
 cfg = Config("./config.json")
 
 
-@click.group()
+@ click.group()
 # @click.option("--id", "-i", default=None, help="小说ID")
 # @click.option("--alias", "-a", default=None, help="小说别名")
 # @click.option("--site", "-s", default=None, help="站点名称", type=click.Choice(cfg.sites))
-@click.option("--multi_thread", required=False, default=True, help="是否使用多线程")
+# @click.option("--multi_thread", required=False, default=True, help="是否使用多线程")
 def main(**kwargs) -> None:
     ...
 
 
-@main.command()
-@click.option("--id", "-i", default=None, required=True, help="小说ID")
-@click.option("--site", "-s", default=None, required=True, help="站点名称", type=click.Choice(cfg.sites))
+# @listen_error(exception=KeyboardInterrupt)
+@ main.command()
+@ click.option("--id", "-i", default=None, required=True, help="小说ID")
+@ click.option("--site", "-s", default=None, required=True, help="站点名称", type=click.Choice(cfg.sites))
 def download(**kwargs):
-    exec = Exec(kwargs=kwargs)
-    exec_func = getattr(exec, kwargs["site"])()
-    exec_func.get_chapter()
+    try:
+        exec = Exec(kwargs=kwargs)
+        exec_func = getattr(exec, kwargs["site"])()
+        asyncio.run(exec_func.get_chapter())
+    except KeyboardInterrupt:
+        print("正在退出")
 
 
 @ main.command()
@@ -422,15 +471,16 @@ class Exec:
 
 if __name__ == "__main__":
     # %%
-    # qidian = QidianScraper(1041092118)
-    # print(qidian.get_author())
+    qidian = QidianScraper(1041092118)
     # qidian.get_index()
+    # print(qidian.get_author())
+    # print(qidian.get_index())
     # print(qidian.check_downloaded())
-    # qidian.get_chapter(multi_thread=True)
+    asyncio.run(qidian.get_chapter())
     # %%
-    fanqie = FanqieScraper(7122740304741927939)
+    # fanqie = FanqieScraper(7122740304741927939)
+    # print(fanqie.is_downloaded("第40章 「黑石修道院」滑索上的生物"))
     # print(fanqie.get_author())
-    fanqie.get_chapter(multi_thread=True)
-    # fanqie.get_index()
+    # asyncio.run(fanqie.get_chapter())
     # fanqie.test()
     # main()
