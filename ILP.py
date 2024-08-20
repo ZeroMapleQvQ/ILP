@@ -475,16 +475,9 @@ class Exec:
 
 if __name__ == "__main__":
     # %%
+    main()
+    # %%
     # qidian = QidianScraper(1041092118)
-    # print(qidian.get_picture())
-    # qidian.get_index()
-    # print(qidian.get_author())
-    # print(qidian.get_index())
-    # print(qidian.check_downloaded())
-    # asyncio.run(qidian.get_chapter())
     # %%
     # fanqie = FanqieScraper(7122740304741927939)
-    # print(fanqie.get_author())
-    # asyncio.run(fanqie.get_chapter())
-    # fanqie.test()
-    main()
+    # print(fanqie.get_title())
