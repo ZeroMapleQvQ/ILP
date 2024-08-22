@@ -53,9 +53,3 @@ def dec(chapter_title, title, suffix="", log_path="./logs", novels_path="./novel
         f.write(cache_str)
     # print(f"{title}:{content_title} 转码完成！")
     logger.info(f"转码完成：{title}:{chapter_title}")
-
-
-# if __name__ == '__main__':
-    # for file in os.listdir(r"./novels/变成女孩子在惊悚世界不想再社恐"):
-    #     title = file[:-4]
-    #     dec(title, "变成女孩子在惊悚世界不想再社恐", "_1")
