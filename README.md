@@ -12,9 +12,6 @@
 - Internet Literature Puller（互联网文学抓取器）
 - Ingenious Literature Picker（巧妙文学选择器）
 - Internet Literature Profiler（互联网文学剖析器）
-- Intelligent Literature Harvester（智能文学收割器）
-- Incremental Literature Collector（增量文学收集器）
-- Integrated Literature Fetcher（综合文学获取器）
 
 ## 介绍
 
