@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    name: ILP To EXE
+    name: ILP To Binary
 
     strategy:
       matrix:
@@ -35,11 +35,10 @@ jobs:
       - name: Build with Pyinstaller
         run: |
           pyinstaller -F ./ILP.py -n ILP-${{ matrix.os }}-${{ steps.commit.outputs.short }}
-          ls ./dist
       - name: Upload to artifact
         uses: actions/upload-artifact@v4
         with: 
-          name: ILP
+          name: ILP-${{ matrix.os }}-${{ steps.commit.outputs.short }}
           path: dist
           
           
