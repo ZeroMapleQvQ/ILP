@@ -25,7 +25,7 @@ jobs:
           pip install pyinstaller
       - name: Build with Pyinstaller
         run: |
-          pyinstaller -Fw ./ILP.py
+          pyinstaller -Fw ./ILP.py -windows
       - name: Upload to artifact
         uses: actions/upload-artifact@v4
         with: 
