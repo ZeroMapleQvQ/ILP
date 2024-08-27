@@ -72,9 +72,17 @@
 6. 切换到dist目录`cd dist`
 7. 运行`ILP.exe --help`获取帮助信息
 
-### 使用二进制文件（Windows Only）
-1. 从Github release下载可执行文件
-2. 运行`ILP.exe --help`获取帮助信息
+### 使用二进制文件（Windows And Linux）
+
+#### Windows
+1. 从Github Actions页面下载压缩包
+2. 解压
+3. 运行`ILP-windows-latest-{commit-id}.exe --help`获取帮助
+
+#### Linux
+1. 从Github Actions页面下载压缩包（ILP-ubuntu-latest-{commit-id}）
+2. 解压
+3. 运行`ILP-ubuntu-latest-{commit-id} --help`获取帮助
 
 ### 命令行参数
 ```
