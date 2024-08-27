@@ -75,7 +75,7 @@
 ### 使用二进制文件（Windows And Linux）
 
 #### Windows
-1. 从Github Actions页面下载压缩包
+1. 从Github Actions页面下载压缩包（ILP-windows-latest-{commit-id}）
 2. 解压
 3. 运行`ILP-windows-latest-{commit-id}.exe --help`获取帮助
 
