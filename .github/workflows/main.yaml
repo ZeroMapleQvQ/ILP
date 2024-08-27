@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     name: ILP To EXE
     steps:
+      - uses: actions/setup-python@v5
       - name: Set up Python
-        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install dependencies
