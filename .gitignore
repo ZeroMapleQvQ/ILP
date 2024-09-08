@@ -5,6 +5,11 @@ build/
 dist/
 *.spec
 
+.idea/
+.vscode/
+venv/
+.env
+
 spiders/
 data/
 .VSCodeCounter/
