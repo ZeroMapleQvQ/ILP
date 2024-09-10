@@ -12,10 +12,12 @@ def listen_error(exception, on_error=None):
             try:
                 return func(*args, **kw)
             except exception:
-                if on_error != None:
+                if on_error is not None:
                     on_error()
                 sys.exit(1)
+
         return wrapper
+
     return decorator
 
 
@@ -31,4 +33,4 @@ def show_banner(text="ILP"):
 
 
 def set_title(text="ILP"):
-    os.system("title "+text)
+    os.system("title " + text)

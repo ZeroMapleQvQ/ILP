@@ -5,11 +5,18 @@ build/
 dist/
 *.spec
 
+# Nuitka
+*.onefile-build
+*.build
+*.dist
+*.exe
+
 .idea/
 .vscode/
 venv/
 .env
 
+cache*
 spiders/
 data/
 .VSCodeCounter/

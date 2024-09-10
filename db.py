@@ -30,7 +30,7 @@ class DB:
             self.cursor.execute(
                 f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
             return self.cursor.fetchone() is not None
-        except Exception as e:
+        except Exception:
             return False
 
     def is_table_empty(self, table_name):
@@ -45,7 +45,7 @@ class DB:
             sql = """
                 CREATE TABLE "{}" (
                     "md5_id"            TEXT,
-                    "id"               INTEGER,
+                    "chapter_id"               INTEGER,
                     "chapter_title" TEXT,
                     "chapter_url"   TEXT,
                     "chapter_sum"  TEXT
@@ -61,7 +61,7 @@ class DB:
 
     def insert_data(self, table_name, md5_id, id, chapter_title, chapter_url, chapter_sum):
         sql = f"INSERT INTO '{
-            table_name}' (md5_id, id, chapter_title, chapter_url, chapter_sum) VALUES (?, ?, ?, ?, ?)"
+            table_name}' (md5_id, chapter_id, chapter_title, chapter_url, chapter_sum) VALUES (?, ?, ?, ?, ?)"
         params = (md5_id, id, chapter_title, chapter_url, chapter_sum)
         self.execute_sql(sql, params)
 
@@ -91,7 +91,7 @@ class DB:
         return result
 
     def delete_data(self, table_name, value=None, query=None):
-        if value != None and query == None:
+        if value is not None and query is None:
             sql = f"DELETE FROM {table_name} WHERE {query} = ?"
             params = (value,)
             self.execute_sql(sql, params)
@@ -122,7 +122,7 @@ class DB:
 
 
 if __name__ == '__main__':
-    db = DB("novels.db")
+    db = DB("cache.db")
     db.create_table("变成女孩子在惊悚世界不想再社恐")
     # db.insert_data("变成女孩子在惊悚世界不想再社恐", 0, "11", "22", None)
     # print(db.table_exists("变成女孩子在惊悚世界不想再社恐"))

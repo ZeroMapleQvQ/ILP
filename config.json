@@ -5,7 +5,7 @@
         "NOVELS_NEW_PATH": "novels_new",
         "LOGS_PATH": "logs",
         "POSTERS_PATH": "posters",
-        "DB_PATH": "novels.db"
+        "DB_PATH": "cache.db"
     },
     "MAX_WORKERS": 7,
     "SLEEP_TIME": 0.2,

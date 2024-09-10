@@ -50,7 +50,7 @@ class NovelScraper:
         self.DB_PATH = self.cfg.PATHS.DB_PATH
         self.db = DB(self.DB_PATH)
 
-        self.id: int = id
+        self.id: str = id
         self.title: str = alias
         self.base_url: str = ""
         self.index_url: str = ""
@@ -123,7 +123,7 @@ class NovelScraper:
         with open(f"{final_path}", "w", encoding="utf-8") as f:
             f.write(chapter)
 
-    async def get_chapter(self, multi_thread: bool = True) -> None:
+    async def get_chapter(self) -> None:
         self.get_index()
         self.logger = Logger(f"{self.LOGS_PATH}/{self.title}.log")
         # downloaded_files = Path(
@@ -225,7 +225,7 @@ class QidianScraper(NovelScraper):
                     [chapter_md5_id, chapter_id, chapter_title, chapter_url, None]
                 )
         elif self.db.is_table_empty(self.title) is None:
-            return
+            return []
         elif not self.db.is_table_empty(self.title):
             all_data = self.db.get_all_data(self.title)
             for data in all_data:
@@ -356,7 +356,7 @@ class FanqieScraper(NovelScraper):
                     [chapter_md5_id, chapter_id, chapter_title, chapter_url, None]
                 )
         elif self.db.is_table_empty(self.title) is None:
-            return
+            return []
         elif not self.db.is_table_empty(self.title):
             all_data = self.db.get_all_data(self.title)
             for data in all_data:
@@ -453,7 +453,7 @@ cfg = Config("./config.json")
 def main(**kwargs) -> None: ...
 
 
-# @listen_error(exception=KeyboardInterrupt)
+
 @main.command()
 @click.option("--id", "-i", default=None, required=True, help="小说ID")
 @click.option(
