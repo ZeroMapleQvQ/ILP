@@ -12,17 +12,13 @@ on:
 jobs:
   build:
     name: ILP To Binary
-
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-
     runs-on: ${{ matrix.os }}
-
     steps:
       - id: commit
         uses: prompt/actions-commit-hash@v3
-  
       - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -40,7 +36,31 @@ jobs:
         with: 
           name: ILP-${{ matrix.os }}-${{ steps.commit.outputs.short }}
           path: dist
-          
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - id: commit
+        uses: prompt/actions-commit-hash@v3
+      - name: Download from artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ILP-${{ matrix.os }}-${{ steps.commit.outputs.short }}
+          path: release
+      - name: Release
+        uses: actions/create-release@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: $GITHUB_REF_NAME
+          release_name: $GITHUB_REF_NAME
+          body: Release $GITHUB_REF_NAME
+          draft: false
+          prerelease: false
           
 
             
