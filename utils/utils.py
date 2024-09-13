@@ -1,6 +1,5 @@
 import sys
 import os
-import pyfiglet
 import hashlib
 import functools
 
@@ -28,9 +27,14 @@ def string_to_md5(string):
 
 
 def show_banner(text="ILP"):
-    banner = pyfiglet.figlet_format(text)
-    print("\n", banner)
+    print(
+        "\n ___ _     ____\n|_ _| |   |  _ \\\n | || |   | |_) |\n | || |___|  __/\n|___|_____|_|"
+    )
 
 
 def set_title(text="ILP"):
     os.system("title " + text)
+
+
+if __name__ == "__main__":
+    show_banner()
