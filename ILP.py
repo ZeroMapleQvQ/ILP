@@ -33,6 +33,8 @@ from utils.utils import show_banner, set_title, string_to_md5
 
 
 class NovelScraper:
+    """爬虫基类"""
+
     def __init__(self, id: str, alias=None) -> None:
         show_banner()
         set_title()
@@ -64,15 +66,18 @@ class NovelScraper:
         self.sem = asyncio.Semaphore(self.MAX_WORKERS)
 
     def get_index_page(self):
+        """获取目录页的HMTL代码"""
         if not self.index_page_text:
             self.index_page_text = requests.get(
                 self.index_url, headers=self.HEADERS
             ).text
         return self.index_page_text
 
-    def get_title(self): ...
+    def get_title(self):
+        """获取小说标题"""
 
     def get_index(self):
+        """获取小说目录"""
         self.get_title()
         self.index_chapter_list = []
         self.index_chapter_md5_id_list = []
@@ -87,14 +92,20 @@ class NovelScraper:
         self.chapter_url_slice = slice(3, 4)
         self.chapter_sum_slice = slice(4, 5)
 
+        # 检查是否已缓存
         if not self.db.table_exists(self.title):
             self.db.create_table(self.title)
 
+    def get_picture(self):
+        """获取小说封面"""
+
     def get_author(self):
+        """获取小说作者"""
         self.get_index_page()
         self.author = ""
 
     def is_downloaded(self, chapter_title: str) -> bool:
+        """检查是否已下载"""
         self.get_title()
         path = Path(f"{self.NOVELS_PATH}/{self.title}")
         files = path.glob("*.txt")
@@ -104,6 +115,7 @@ class NovelScraper:
         return False
 
     def check_full(self) -> bool:
+        """检查是否已下载所有章节"""
         self.get_title()
         self.get_index()
         path = Path(f"{self.NOVELS_PATH}/{self.title}")
@@ -115,6 +127,7 @@ class NovelScraper:
             return False
 
     def save_novel(self, title: str, chapter: str, chapter_title: str) -> None:
+        """保存小说"""
         novels_path = Path(self.NOVELS_PATH)
         chapter_path = Path(f"{chapter_title}.txt")
         title_path = novels_path / Path(title)
@@ -124,6 +137,7 @@ class NovelScraper:
             f.write(chapter)
 
     async def get_chapter(self) -> None:
+        """利用协程获取所有未下载的章节"""
         self.get_index()
         self.logger = Logger(f"{self.LOGS_PATH}/{self.title}.log")
         # downloaded_files = Path(
@@ -157,6 +171,7 @@ class NovelScraper:
         #     self.logger.info(f"{self.title} 下载失败！")
 
     async def fetch_chapter(self, index: int) -> None:
+        """获取单个章节"""
         set_title(f"ILP - {self.title} - {self.download_list[index]}")
         if self.is_downloaded(self.download_list[index]):
             return
@@ -172,6 +187,7 @@ class QidianScraper(NovelScraper):
         self.title_page_text = self.get_title_page()
 
     def get_title_page(self):
+        """获取小说标题所在页的HTML代码"""
         self.title_page_text = requests.get(self.title_url, headers=self.HEADERS).text
         return self.title_page_text
 
@@ -226,6 +242,7 @@ class QidianScraper(NovelScraper):
                 )
         elif self.db.is_table_empty(self.title) is None:
             return []
+        # 从数据库中获取缓存
         elif not self.db.is_table_empty(self.title):
             all_data = self.db.get_all_data(self.title)
             for data in all_data:
@@ -453,8 +470,7 @@ cfg = Config("./config.json")
 def main(**kwargs) -> None: ...
 
 
-
-@main.command()
+@main.command(help="下载小说")
 @click.option("--id", "-i", default=None, required=True, help="小说ID")
 @click.option(
     "--site",
@@ -473,7 +489,7 @@ def download(**kwargs):
         tqdm.write("正在退出")
 
 
-@main.command()
+@main.command(help="解码小说")
 @click.option("--title", "-t", default=None, required=True, help="小说标题")
 @click.option("--chapter_title", "-ct", default="all", help="小说章节标题,默认为全部")
 def decode(**kwargs):
@@ -500,7 +516,7 @@ def decode(**kwargs):
         )
 
 
-@main.command()
+@main.command(help="获取小说章节目录并缓存到文件")
 @click.option("--id", "-i", default=None, required=True, help="小说ID")
 @click.option(
     "--site",
@@ -533,7 +549,7 @@ def get_index(**kwargs):
         print("输出路径和输出格式必须都指定或都不指定")
 
 
-@main.command()
+@main.command(help="获取小说作者")
 @click.option("--id", "-i", default=None, required=True, help="小说ID")
 @click.option(
     "--site",
