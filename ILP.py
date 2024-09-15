@@ -215,7 +215,7 @@ class QidianScraper(NovelScraper):
             ]
 
             self.index_chapter_md5_id_list = [
-                string_to_md5(i) for i in self.index_chapter_url_list
+                string_to_md5(i) for i in self.index_chapter_id_list
             ]
 
             self.index_chapter_id_list = [
@@ -332,7 +332,10 @@ class FanqieScraper(NovelScraper):
         super().__init__(id, alias)
         self.base_url = "https://fanqienovel.com"
         self.index_url = f"https://fanqienovel.com/page/{id}"
-        self.api_url = "https://fanqienovel.com/api/reader/full?itemId="
+        self.index_api_url = (
+            "https://fanqienovel.com/api/reader/directory/detail?bookId="
+        )
+        self.chapter_api_url = "https://fanqienovel.com/api/reader/full?itemId="
         self.index_page_text = self.get_index_page()
 
     def get_title(self):
@@ -346,32 +349,33 @@ class FanqieScraper(NovelScraper):
     def get_index(self, export_path: str = None, export_type: str = None) -> list:
         super().get_index()
         if self.db.is_table_empty(self.title):
-            soup = BeautifulSoup(self.index_page_text, "html.parser")
-            index_list = soup.find_all("div", class_="chapter-item")
-            for index in range(len(index_list)):
-                chapter_title = index_list[index].find("a").text
-                chapter_url = self.base_url + index_list[index].find("a")["href"]
-                chapter_id = re.sub(
-                    r"https://fanqienovel.com/reader/", "", chapter_url
-                ).strip("/")
-                # print(chapter_id)
-                chapter_md5_id = string_to_md5(chapter_url)
-                self.db.insert_data(
-                    self.title,
-                    chapter_md5_id,
-                    chapter_id,
-                    chapter_title,
-                    chapter_url,
-                    None,
-                )
-                self.index_chapter_md5_id_list.append(chapter_md5_id)
-                self.index_chapter_id_list.append(chapter_id)
-                self.index_chapter_title_list.append(chapter_title)
-                self.index_chapter_url_list.append(chapter_url)
-                self.index_chapter_sum_list.append(None)
-                self.index_chapter_list.append(
-                    [chapter_md5_id, chapter_id, chapter_title, chapter_url, None]
-                )
+            index_api_page_response = requests.get(
+                f"{self.index_api_url}{self.id}", headers=self.HEADERS
+            ).json()
+            index_data = index_api_page_response["data"]
+            chapter_list = index_data["chapterListWithVolume"]
+            for volumes in chapter_list:
+                for chapter in volumes:
+                    chapter_title = chapter["title"]
+                    chapter_url = f"https://fanqienovel.com/reader/{chapter["itemId"]}"
+                    chapter_id = chapter["itemId"]
+                    chapter_md5_id = string_to_md5(chapter_id)
+                    self.db.insert_data(
+                        self.title,
+                        chapter_md5_id,
+                        chapter_id,
+                        chapter_title,
+                        chapter_url,
+                        None,
+                    )
+                    self.index_chapter_md5_id_list.append(chapter_md5_id)
+                    self.index_chapter_id_list.append(chapter_id)
+                    self.index_chapter_title_list.append(chapter_title)
+                    self.index_chapter_url_list.append(chapter_url)
+                    self.index_chapter_sum_list.append(None)
+                    self.index_chapter_list.append(
+                        [chapter_md5_id, chapter_id, chapter_title, chapter_url, None]
+                    )
         elif self.db.is_table_empty(self.title) is None:
             return []
         elif not self.db.is_table_empty(self.title):
@@ -419,7 +423,7 @@ class FanqieScraper(NovelScraper):
         async with self.sem:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    f"{self.api_url}{self.index_chapter_id_list[index]}",
+                    f"{self.chapter_api_url}{self.index_chapter_id_list[index]}",
                     headers=self.HEADERS,
                     cookies={"novel_web_id": "7357767624615331362"},
                 ) as response:
@@ -579,9 +583,9 @@ class Exec:
 
 if __name__ == "__main__":
     # %%
-    main()
+    # main()
     # %%
     # qidian = QidianScraper(1041092118)
     # %%
-    # fanqie = FanqieScraper(7122740304741927939)
-    # print(fanqie.get_title())
+    fanqie = FanqieScraper(7122740304741927939)
+    fanqie.get_index()
