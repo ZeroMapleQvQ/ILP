@@ -6,18 +6,14 @@
 @Contact :   LingYingQvQ@gmail.com
 """
 
-# import os
-import re
 
-# import sys
+import re
 import time
 import click
 import asyncio
 import aiohttp
 import logging
 import requests
-
-# import functools
 import threading
 import fake_useragent
 from tqdm import tqdm
@@ -82,7 +78,10 @@ class NovelScraper:
         self.executor = None
         self.sem = asyncio.Semaphore(self.MAX_WORKERS)
 
-        self.logger = Logger(f"{self.LOGS_PATH}/{self.title}.log")
+        self.logger = Logger(f"{self.LOGS_PATH}/{self.id}.log")
+
+    def get_logger(self):
+        return self.logger
 
     def get_index_page(self):
         """获取目录页的HTML代码"""
@@ -488,8 +487,10 @@ def main(**kwargs) -> None: ...
 )
 def download(**kwargs):
     try:
+        global logger
         executor = Exec(kwargs=kwargs)
         exec_func = getattr(executor, kwargs["site"])()
+        logger = exec_func.get_logger()
         asyncio.run(exec_func.get_chapter())
     except KeyboardInterrupt:
         tqdm.write("正在退出")
@@ -585,7 +586,10 @@ class Exec:
 
 if __name__ == "__main__":
     # %%
-    main()
+    try:
+        main()
+    except Exception as e:
+        logger.exception(e)
     # %%
     # qidian = QidianScraper(1041092118)
     # %%
