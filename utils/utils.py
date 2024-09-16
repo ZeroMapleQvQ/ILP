@@ -4,6 +4,15 @@ import hashlib
 import functools
 
 
+def cookie_parser(cookie_str):
+    cookies_dict = {}
+    cookies = cookie_str.split(";")
+    for cookie in cookies:
+        key, value = cookie.strip().split("=", 1)
+        cookies_dict[key] = value
+    return cookies_dict
+
+
 def listen_error(exception, on_error=None):
     def decorator(func):
         @functools.wraps(func)
@@ -22,7 +31,7 @@ def listen_error(exception, on_error=None):
 
 def string_to_md5(string):
     md5 = hashlib.md5()
-    md5.update(string.encode("utf-8"))
+    md5.update(str(string).encode("utf-8"))
     return md5.hexdigest()
 
 

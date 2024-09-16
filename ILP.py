@@ -6,7 +6,6 @@
 @Contact :   LingYingQvQ@gmail.com
 """
 
-
 import re
 import time
 import click
@@ -25,13 +24,13 @@ from utils.fanqie_decode import dec
 from config import Config
 from log import Logger
 from db import DB
-from utils.utils import show_banner, set_title, string_to_md5
+from utils.utils import show_banner, set_title, string_to_md5, cookie_parser
 
 
 class NovelScraper:
     """爬虫基类"""
 
-    def __init__(self, book_id: int = None, alias=None) -> None:
+    def __init__(self, book_id: int = None, alias=None, cookies=None) -> None:
         show_banner()
         set_title()
         logging.getLogger("requests").setLevel(logging.ERROR)
@@ -72,6 +71,9 @@ class NovelScraper:
 
         self.index_page_text: str = ""
         self.HEADERS = {"User-Agent": fake_useragent.UserAgent().random}
+        if cookies is not None:
+            cookies = cookie_parser(cookies)
+        self.cookies = cookies
 
         self.thread_lock = threading.Lock()
         self._cancel_event = threading.Event()
@@ -167,14 +169,17 @@ class NovelScraper:
 
     async def fetch_chapter(self, index: int) -> None:
         """获取单个章节"""
-        set_title(f"ILP - {self.title} - {self.download_list[index]}")
-        if self.is_downloaded(self.download_list[index]):
+        chapter_title = self.download_list[index]
+        set_title(f"ILP - {self.title} - {chapter_title}")
+        if self.is_downloaded(chapter_title):
+            self.logger.info(f"已经下载：{self.title}:{chapter_title}")
+            self.progress_bar.update(1)
             return
 
 
 class QidianScraper(NovelScraper):
-    def __init__(self, book_id: int, alias: str = None):
-        super().__init__(book_id, alias)
+    def __init__(self, book_id: int, alias: str = None, cookies=None) -> None:
+        super().__init__(book_id, alias, cookies)
         self.base_url = "https://m.qidian.com"
         self.title_url = f"{self.base_url}/book/{self.id}"
         self.index_url = f"{self.base_url}/book/{self.id}/catalog"
@@ -298,11 +303,11 @@ class QidianScraper(NovelScraper):
                         "(" + str(index + 1) + "/" + str(self.download_length) + ")"
                     )
                     output_behind = (
-                        "正在爬取 " + self.title + ":" + chapter_title + " 中..."
+                        "正在下载：" + self.title + ":" + chapter_title + " 中..."
                     )
                     # print("{:<15} {:}".format(output_front, output_behind))
                     tqdm.write("{:<15} {:}".format(output_front, output_behind))
-                    self.logger.info(f"开始爬取 {self.title}:{chapter_title}")
+                    self.logger.info(f"开始下载：{self.title}:{chapter_title}")
 
                     soup = BeautifulSoup(chapter_get, "html.parser")
                     p = soup.find_all("p", class_=False)
@@ -312,7 +317,7 @@ class QidianScraper(NovelScraper):
                     chapter_main = re.sub(r"\u3000", r"", chapter_main)
                     chapter_sum = len(chapter_main)
                     # self.index_chapter_list[index][self.chapter_sum_slice] = chapter_sum
-                    chapter_md5 = string_to_md5(self.index_chapter_url_list[index])
+                    chapter_md5 = string_to_md5(self.index_chapter_id_list[index])
                     db.update_data(
                         self.title, "chapter_sum", chapter_sum, "md5_id", chapter_md5
                     )
@@ -324,8 +329,8 @@ class QidianScraper(NovelScraper):
 
 
 class FanqieScraper(NovelScraper):
-    def __init__(self, book_id: int, alias=None) -> None:
-        super().__init__(book_id, alias)
+    def __init__(self, book_id: int, alias: str = None, cookies=None) -> None:
+        super().__init__(book_id, alias, cookies)
         self.base_url = "https://fanqienovel.com"
         self.index_url = f"https://fanqienovel.com/page/{book_id}"
         self.index_api_url = (
@@ -414,52 +419,42 @@ class FanqieScraper(NovelScraper):
         from utils.fanqie_decode import dec
 
         db = DB(self.DB_PATH)
-        # cookie = {"novel_web_id": "7357767624615331362"}
 
         async with self.sem:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    self.chapter_api_url,
+                    f"https://fanqienovel.com/reader/{self.index_chapter_id_list[index]}",
                     headers=self.HEADERS,
-                    cookies={"novel_web_id": "7357767624615331362"},
-                    params={
-                        "itemId": f"{self.index_chapter_id_list[index]}",
-                        "msToken": "XH6enyU_9cU9PNKNs__u75OxAcalS7LQp7qxWCRLzTTB8waJSvc_-sduHagupJKYKKJFUihKlgsaQ4vlH229V8OlDFYyZEXP31k4JI__9OeSHbcIPg_fpw==",
-                        "a_bogus": "E7sOhchPMsm1gf33qwkz97tmmvm0YW5NgZEz/5WZ70Ly",
-                    },
+                    cookies=self.cookies,
                 ) as response:
                     output_front = (
                         "(" + str(index + 1) + "/" + str(self.download_length) + ")"
                     )
                     output_behind = (
-                        "正在爬取 " + self.title + ":" + chapter_title + " 中..."
+                        "正在下载：" + self.title + ":" + chapter_title + " 中..."
                     )
                     tqdm.write("{:<15} {:}".format(output_front, output_behind))
                     # print("{:<15} {:}".format(output_front, output_behind))
-                    self.logger.info(f"开始爬取 {self.title}:{chapter_title}")
-                    chapter_json = await response.json()
-                    soup = BeautifulSoup(
-                        chapter_json["data"]["chapterData"]["content"], "html.parser"
-                    )
+                    self.logger.info(f"开始下载：{self.title}:{chapter_title}")
+                    chapter_text = await response.text()
+                    soup = BeautifulSoup(chapter_text, "html.parser")
                     p = soup.find_all("p", class_=False)
                     chapter_text = [i.text for i in p]
                     chapter_main = "\n".join(chapter_text)
                     chapter_main = re.sub(r"\u3000", r"", chapter_main)
                     chapter_head = chapter_title + "\n---\n\n"
-                    chapter_sum = chapter_json["data"]["chapterData"][
-                        "chapterWordNumber"
-                    ]
-                    self.index_chapter_list[index][self.chapter_sum_slice] = chapter_sum
-                    chapter_md5 = string_to_md5(self.index_chapter_url_list[index])
+                    chapter_sum = len(chapter_main)
+                    # self.index_chapter_list[index][self.chapter_sum_slice] = chapter_sum
+                    chapter_md5 = string_to_md5(self.index_chapter_id_list[index])
                     db.update_data(
                         self.title, "chapter_sum", chapter_sum, "md5_id", chapter_md5
                     )
                     self.save_novel(
                         self.title, chapter_head + chapter_main, chapter_title
                     )
-                    dec(
-                        chapter_title,
-                        self.title,
+                    await dec(
+                        chapter_title=chapter_title,
+                        title=self.title,
                         log_path=self.LOGS_PATH,
                         novels_path=self.NOVELS_PATH,
                         novels_new_path=self.NOVELS_PATH,
@@ -477,6 +472,7 @@ def main(**kwargs) -> None: ...
 
 @main.command(help="下载小说")
 @click.option("--id", "-i", default=None, required=True, help="小说ID")
+@click.option("--cookie", "-c", default=None, help="cookie")
 @click.option(
     "--site",
     "-s",
@@ -592,6 +588,3 @@ if __name__ == "__main__":
         logger.exception(e)
     # %%
     # qidian = QidianScraper(1041092118)
-    # %%
-    # fanqie = FanqieScraper(7122740304741927939)
-    # fanqie.get_index()

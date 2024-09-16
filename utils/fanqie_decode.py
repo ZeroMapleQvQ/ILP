@@ -14,7 +14,14 @@ def decode_ascii(string):
         return string
 
 
-def dec(chapter_title, title, suffix="", log_path="./logs", novels_path="./novels", novels_new_path="./novels_new"):
+async def dec(
+    chapter_title,
+    title,
+    suffix="",
+    log_path="./logs",
+    novels_path="./novels",
+    novels_new_path="./novels_new",
+):
     new_context = []
     # context = []
     # files = os.listdir(novels_path)
@@ -29,8 +36,8 @@ def dec(chapter_title, title, suffix="", log_path="./logs", novels_path="./novel
     title_path = Path(title)
     chapter_path = Path(f"{chapter_title}.txt")
     chapter_path_with_suffix = Path(f"{chapter_title}{suffix}.txt")
-    old_path = novels_path/title_path
-    new_path = novels_new_path/title_path
+    old_path = novels_path / title_path
+    new_path = novels_new_path / title_path
 
     old_path.mkdir(exist_ok=True)
     new_path.mkdir(exist_ok=True)
@@ -39,7 +46,7 @@ def dec(chapter_title, title, suffix="", log_path="./logs", novels_path="./novel
     # print(title)
     # print(f"{title}:{content_title} 转码中...")
     logger.info(f"开始转码：{title}:{chapter_title}")
-    with open(old_path/chapter_path, "r", encoding="utf-8", errors="ignore") as f:
+    with open(old_path / chapter_path, "r", encoding="utf-8", errors="ignore") as f:
         # with open(f"{novels_path}/{title}/{content_title}.txt", "r", encoding="utf-8", errors="ignore") as f:
         context = f.read()
     cache_str = ""
@@ -48,7 +55,7 @@ def dec(chapter_title, title, suffix="", log_path="./logs", novels_path="./novel
         cache_str += decode_ascii(j)
         # print(encode_ascii(j))
     new_context.append(cache_str)
-    with open(new_path/chapter_path_with_suffix, "w", encoding="utf-8") as f:
+    with open(new_path / chapter_path_with_suffix, "w", encoding="utf-8") as f:
         # with open(f"{novels_new_path}{title}/{content_title}{suffix}.txt", "w", encoding="utf-8") as f:
         f.write(cache_str)
     # print(f"{title}:{content_title} 转码完成！")

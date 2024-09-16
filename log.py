@@ -12,6 +12,7 @@ class Logger:
             filename=filepath,
             filemode="a",
             format="[%(levelname)s][%(asctime)s]: %(message)s",
+            encoding="utf-8",
         )
         self.logger = logging.getLogger()
 
