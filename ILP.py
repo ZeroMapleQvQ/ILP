@@ -585,10 +585,9 @@ class Exec:
 
 if __name__ == "__main__":
     # %%
-    # main()
+    main()
     # %%
     # qidian = QidianScraper(1041092118)
     # %%
-    fanqie = FanqieScraper(7122740304741927939)
-    asyncio.run(fanqie.get_chapter())
+    # fanqie = FanqieScraper(7122740304741927939)
     # fanqie.get_index()
