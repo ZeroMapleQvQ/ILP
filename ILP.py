@@ -35,11 +35,14 @@ from utils.utils import show_banner, set_title, string_to_md5
 class NovelScraper:
     """爬虫基类"""
 
-    def __init__(self, id: str, alias=None) -> None:
+    def __init__(self, book_id: int = None, alias=None) -> None:
         show_banner()
         set_title()
         logging.getLogger("requests").setLevel(logging.ERROR)
         logging.getLogger("urllib3").setLevel(logging.ERROR)
+
+        if book_id is None and alias is None:
+            print("请指定小说ID或别名")
 
         self.cfg = Config("./config.json")
         self.MAX_WORKERS = self.cfg.MAX_WORKERS
@@ -52,33 +55,12 @@ class NovelScraper:
         self.DB_PATH = self.cfg.PATHS.DB_PATH
         self.db = DB(self.DB_PATH)
 
-        self.id: str = id
+        self.id: int = book_id
         self.title: str = alias
         self.base_url: str = ""
         self.index_url: str = ""
 
-        self.index_page_text: str = ""
-        self.HEADERS = {"User-Agent": fake_useragent.UserAgent().random}
-
-        self.thread_lock = threading.Lock()
-        self._cancel_event = threading.Event()
-        self.executor = None
-        self.sem = asyncio.Semaphore(self.MAX_WORKERS)
-
-    def get_index_page(self):
-        """获取目录页的HMTL代码"""
-        if not self.index_page_text:
-            self.index_page_text = requests.get(
-                self.index_url, headers=self.HEADERS
-            ).text
-        return self.index_page_text
-
-    def get_title(self):
-        """获取小说标题"""
-
-    def get_index(self):
-        """获取小说目录"""
-        self.get_title()
+        self.author: str = ""
         self.index_chapter_list = []
         self.index_chapter_md5_id_list = []
         self.index_chapter_id_list = []
@@ -92,6 +74,31 @@ class NovelScraper:
         self.chapter_url_slice = slice(3, 4)
         self.chapter_sum_slice = slice(4, 5)
 
+        self.index_page_text: str = ""
+        self.HEADERS = {"User-Agent": fake_useragent.UserAgent().random}
+
+        self.thread_lock = threading.Lock()
+        self._cancel_event = threading.Event()
+        self.executor = None
+        self.sem = asyncio.Semaphore(self.MAX_WORKERS)
+
+        self.logger = Logger(f"{self.LOGS_PATH}/{self.title}.log")
+
+    def get_index_page(self):
+        """获取目录页的HTML代码"""
+        if not self.index_page_text:
+            self.index_page_text = requests.get(
+                self.index_url, headers=self.HEADERS
+            ).text
+        return self.index_page_text
+
+    def get_title(self):
+        """获取小说标题"""
+
+    def get_index(self):
+        """获取小说目录"""
+        self.get_title()
+
         # 检查是否已缓存
         if not self.db.table_exists(self.title):
             self.db.create_table(self.title)
@@ -102,7 +109,8 @@ class NovelScraper:
     def get_author(self):
         """获取小说作者"""
         self.get_index_page()
-        self.author = ""
+        author = ""
+        return author
 
     def is_downloaded(self, chapter_title: str) -> bool:
         """检查是否已下载"""
@@ -139,13 +147,7 @@ class NovelScraper:
     async def get_chapter(self) -> None:
         """利用协程获取所有未下载的章节"""
         self.get_index()
-        self.logger = Logger(f"{self.LOGS_PATH}/{self.title}.log")
-        # downloaded_files = Path(
-        #     f"{self.NOVELS_PATH}/{self.title}").glob("*.txt")
-        # downloaded_chapters = [file.stem for file in downloaded_files]
 
-        # download_list = [
-        #     chapter for chapter in self.index_chapter_title_list if chapter not in downloaded_chapters]
         download_list = self.index_chapter_title_list
         download_length = len(download_list)
         self.download_length = download_length
@@ -163,12 +165,6 @@ class NovelScraper:
 
         tasks = [self.fetch_chapter(i) for i in range(download_length)]
         await asyncio.gather(*tasks)
-        # if self.check_full() == True:
-        #     print(f"{self.title} 下载完成！")
-        #     self.logger.info(f"{self.title} 下载完成！")
-        # else:
-        #     print(f"{self.title} 下载失败！")
-        #     self.logger.info(f"{self.title} 下载失败！")
 
     async def fetch_chapter(self, index: int) -> None:
         """获取单个章节"""
@@ -178,8 +174,8 @@ class NovelScraper:
 
 
 class QidianScraper(NovelScraper):
-    def __init__(self, id: str, alias: str = None):
-        super().__init__(id, alias)
+    def __init__(self, book_id: int, alias: str = None):
+        super().__init__(book_id, alias)
         self.base_url = "https://m.qidian.com"
         self.title_url = f"{self.base_url}/book/{self.id}"
         self.index_url = f"{self.base_url}/book/{self.id}/catalog"
@@ -273,18 +269,19 @@ class QidianScraper(NovelScraper):
         super().get_author()
         self.get_title_page()
         soup = BeautifulSoup(self.title_page_text, "html.parser")
-        self.author = soup.find("a", class_="detail__header-detail__author-link").text
-        self.author = re.sub(r"作者：|级别：|Lv.\d+|\s", "", self.author)
-        return self.author
+        author = soup.find("a", class_="detail__header-detail__author-link").text
+        author = re.sub(r"作者：|级别：|Lv.\d+|\s", "", author)
+        self.author = author
+        return author
 
     def get_picture(self) -> str:
         self.get_title()
         soup = BeautifulSoup(self.title_page_text, "html.parser")
         img = soup.find("img", {"class": "detail__header-cover__img"})
-        self.picture_url = "https:" + img["src"]
+        picture_url = "https:" + img["src"]
         path = Path(f"{self.POSTERS_PATH}/{self.title}.png")
-        download_image(self.picture_url, path)
-        return self.picture_url
+        download_image(picture_url, path)
+        return picture_url
 
     async def fetch_chapter(self, index: int) -> None:
         await super().fetch_chapter(index)
@@ -328,14 +325,14 @@ class QidianScraper(NovelScraper):
 
 
 class FanqieScraper(NovelScraper):
-    def __init__(self, id: str, alias=None) -> None:
-        super().__init__(id, alias)
+    def __init__(self, book_id: int, alias=None) -> None:
+        super().__init__(book_id, alias)
         self.base_url = "https://fanqienovel.com"
-        self.index_url = f"https://fanqienovel.com/page/{id}"
+        self.index_url = f"https://fanqienovel.com/page/{book_id}"
         self.index_api_url = (
             "https://fanqienovel.com/api/reader/directory/detail?bookId="
         )
-        self.chapter_api_url = "https://fanqienovel.com/api/reader/full?itemId="
+        self.chapter_api_url = "https://fanqienovel.com/api/reader/full"
         self.index_page_text = self.get_index_page()
 
     def get_title(self):
@@ -423,9 +420,14 @@ class FanqieScraper(NovelScraper):
         async with self.sem:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    f"{self.chapter_api_url}{self.index_chapter_id_list[index]}",
+                    self.chapter_api_url,
                     headers=self.HEADERS,
                     cookies={"novel_web_id": "7357767624615331362"},
+                    params={
+                        "itemId": f"{self.index_chapter_id_list[index]}",
+                        "msToken": "XH6enyU_9cU9PNKNs__u75OxAcalS7LQp7qxWCRLzTTB8waJSvc_-sduHagupJKYKKJFUihKlgsaQ4vlH229V8OlDFYyZEXP31k4JI__9OeSHbcIPg_fpw==",
+                        "a_bogus": "E7sOhchPMsm1gf33qwkz97tmmvm0YW5NgZEz/5WZ70Ly",
+                    },
                 ) as response:
                     output_front = (
                         "(" + str(index + 1) + "/" + str(self.download_length) + ")"
@@ -486,8 +488,8 @@ def main(**kwargs) -> None: ...
 )
 def download(**kwargs):
     try:
-        exec = Exec(kwargs=kwargs)
-        exec_func = getattr(exec, kwargs["site"])()
+        executor = Exec(kwargs=kwargs)
+        exec_func = getattr(executor, kwargs["site"])()
         asyncio.run(exec_func.get_chapter())
     except KeyboardInterrupt:
         tqdm.write("正在退出")
@@ -539,8 +541,8 @@ def decode(**kwargs):
     type=click.Choice(["txt", "json", "csv"]),
 )
 def get_index(**kwargs):
-    exec = Exec(kwargs=kwargs)
-    exec_func = getattr(exec, kwargs["site"])()
+    executor = Exec(kwargs=kwargs)
+    exec_func = getattr(executor, kwargs["site"])()
     if kwargs["out_put_path"] is None and kwargs["out_put_type"] is None:
         exec_func.get_index()
         print("缓存目录到数据库成功")
@@ -554,7 +556,7 @@ def get_index(**kwargs):
 
 
 @main.command(help="获取小说作者")
-@click.option("--id", "-i", default=None, required=True, help="小说ID")
+@click.option("--id", "-i", default=None, required=True, help="小说ID", type=int)
 @click.option(
     "--site",
     "-s",
@@ -564,8 +566,8 @@ def get_index(**kwargs):
     type=click.Choice(cfg.sites),
 )
 def get_author(**kwargs):
-    exec = Exec(kwargs=kwargs)
-    exec_func = getattr(exec, kwargs["site"])()
+    executor = Exec(kwargs=kwargs)
+    exec_func = getattr(executor, kwargs["site"])()
     author = exec_func.get_author()
     print(f"作者: {author}")
 
@@ -588,4 +590,5 @@ if __name__ == "__main__":
     # qidian = QidianScraper(1041092118)
     # %%
     fanqie = FanqieScraper(7122740304741927939)
-    fanqie.get_index()
+    asyncio.run(fanqie.get_chapter())
+    # fanqie.get_index()
