@@ -344,7 +344,7 @@ class QidianScraper(NovelScraper):
         )
 
         chapter_response = response
-        asyncio.sleep(self.SLEEP_TIME)
+        time.sleep(self.SLEEP_TIME)
         return {
             "chapter_response": chapter_response,
             "index": index,
@@ -484,7 +484,7 @@ class FanqieScraper(NovelScraper):
         )
 
         chapter_response = response
-        asyncio.sleep(self.SLEEP_TIME)
+        time.sleep(self.SLEEP_TIME)
         return {
             "chapter_response": chapter_response,
             "index": index,
@@ -579,6 +579,23 @@ def get_index(**kwargs):
         print(f"输出到{kwargs['out_put_path']}成功")
     else:
         print("输出路径和输出格式必须都指定或都不指定")
+
+
+@main.command(help="获取小说封面")
+@click.option("--id", "-i", default=None, required=True, help="小说ID", type=int)
+@click.option(
+    "--site",
+    "-s",
+    default=None,
+    required=True,
+    help="站点名称",
+    type=click.Choice(cfg.sites),
+)
+def get_picture(**kwargs):
+    executor = Exec(kwargs=kwargs)
+    exec_func = getattr(executor, kwargs["site"])()
+    picture_url = exec_func.get_picture()
+    print(f"封面地址: {picture_url}")
 
 
 @main.command(help="获取小说作者")
