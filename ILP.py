@@ -296,7 +296,9 @@ class QidianScraper(NovelScraper):
         async with self.sem:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    self.index_chapter_url_list[index], headers=self.HEADERS
+                    self.index_chapter_url_list[index],
+                    headers=self.HEADERS,
+                    cookies=self.cookies,
                 ) as response:
                     chapter_get = await response.text()
                     output_front = (
@@ -336,7 +338,9 @@ class FanqieScraper(NovelScraper):
         self.index_api_url = (
             "https://fanqienovel.com/api/reader/directory/detail?bookId="
         )
-        self.chapter_api_url = "https://fanqienovel.com/api/reader/full"
+        self.chapter_api_url = (
+            "https://novel.snssdk.com/api/novel/reader/full/v1/?item_id="
+        )
         self.index_page_text = self.get_index_page()
 
     def get_title(self):
@@ -423,7 +427,7 @@ class FanqieScraper(NovelScraper):
         async with self.sem:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    f"https://fanqienovel.com/reader/{self.index_chapter_id_list[index]}",
+                    f"{self.chapter_api_url}{self.index_chapter_id_list[index]}",
                     headers=self.HEADERS,
                     cookies=self.cookies,
                 ) as response:
@@ -436,15 +440,13 @@ class FanqieScraper(NovelScraper):
                     tqdm.write("{:<15} {:}".format(output_front, output_behind))
                     # print("{:<15} {:}".format(output_front, output_behind))
                     self.logger.info(f"开始下载：{self.title}:{chapter_title}")
-                    chapter_text = await response.text()
-                    soup = BeautifulSoup(chapter_text, "html.parser")
-                    p = soup.find_all("p", class_=False)
-                    chapter_text = [i.text for i in p]
-                    chapter_main = "\n".join(chapter_text)
+                    chapter_json = await response.json()
+                    chapter_main = re.sub(
+                        r"(<.*?>)+", "\n", chapter_json["data"]["content"]
+                    )
                     chapter_main = re.sub(r"\u3000", r"", chapter_main)
                     chapter_head = chapter_title + "\n---\n\n"
                     chapter_sum = len(chapter_main)
-                    # self.index_chapter_list[index][self.chapter_sum_slice] = chapter_sum
                     chapter_md5 = string_to_md5(self.index_chapter_id_list[index])
                     db.update_data(
                         self.title, "chapter_sum", chapter_sum, "md5_id", chapter_md5
