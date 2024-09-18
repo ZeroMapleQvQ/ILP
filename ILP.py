@@ -8,6 +8,7 @@
 
 import re
 import json
+import time
 import click
 import asyncio
 import aiohttp
@@ -314,39 +315,61 @@ class QidianScraper(NovelScraper):
         download_image(picture_url, path)
         return picture_url
 
-    async def fetch_chapter(self, index: int) -> None:
-        await super().fetch_chapter(index)
+    def parse_chapter(
+        self, chapter_response: str, chapter_title: str, index: int
+    ) -> None:
         db = DB(self.DB_PATH)
 
-        chapter_title = self.download_list[index]
+        soup = BeautifulSoup(chapter_response, "html.parser")
+        p = soup.find_all("p", class_=False)
+        chapter_head = chapter_title + "\n---\n\n"
+        chapter_text = [i.text for i in p]
+        chapter_main = "\n".join(chapter_text)
+        chapter_sum = len(chapter_main)
+        chapter_md5 = string_to_md5(self.index_chapter_id_list[index])
+        self.save_novel(self.title, chapter_head + chapter_main, chapter_title)
+        self.logger.info(f"下载完成：{self.title}:{chapter_title}")
 
-        async with self.sem:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    self.index_chapter_url_list[index],
-                    headers=self.HEADERS,
-                    cookies=self.cookies,
-                ) as response:
-                    chapter_get = await response.text()
-                    self.logger.info(f"开始下载：{self.title}:{chapter_title}")
+        db.update_data(self.title, "chapter_sum", chapter_sum, "md5_id", chapter_md5)
 
-                    soup = BeautifulSoup(chapter_get, "html.parser")
-                    p = soup.find_all("p", class_=False)
-                    chapter_text = [i.text for i in p]
-                    chapter_head = chapter_title + "\n---\n\n"
-                    chapter_main = "\n".join(chapter_text)
-                    chapter_main = re.sub(r"\u3000", r"", chapter_main)
-                    chapter_sum = len(chapter_main)
-                    # self.index_chapter_list[index][self.chapter_sum_slice] = chapter_sum
-                    chapter_md5 = string_to_md5(self.index_chapter_id_list[index])
-                    db.update_data(
-                        self.title, "chapter_sum", chapter_sum, "md5_id", chapter_md5
-                    )
-                    self.save_novel(
-                        self.title, chapter_head + chapter_main, chapter_title
-                    )
-                    self.progress_bar.update(1)
-                    await asyncio.sleep(self.SLEEP_TIME)
+        del db
+
+    async def fetch_chapter(self, index: int) -> None:
+        await super().fetch_chapter(index)
+
+        response = await self.async_get(
+            self.index_chapter_url_list[index],
+            headers=self.HEADERS,
+            cookies=self.cookies,
+        )
+
+        chapter_response = response
+        asyncio.sleep(self.SLEEP_TIME)
+        return {
+            "chapter_response": chapter_response,
+            "index": index,
+            "chapter_title": self.index_chapter_title_list[index],
+        }
+
+        # async with self.sem:
+        #     async with aiohttp.ClientSession() as session:
+        #         async with session.get(
+        #             self.index_chapter_url_list[index],
+        #             headers=self.HEADERS,
+        #             cookies=self.cookies,
+        #         ) as response:
+        #             chapter_get = await response.text()
+        #             self.logger.info(f"开始下载：{self.title}:{chapter_title}")
+
+        #             soup = BeautifulSoup(chapter_get, "html.parser")
+        #             p = soup.find_all("p", class_=False)
+        #             chapter_text = [i.text for i in p]
+        #             chapter_head = chapter_title + "\n---\n\n"
+        #             chapter_main = "\n".join(chapter_text)
+        #             chapter_main = re.sub(r"\u3000", r"", chapter_main)
+        #             chapter_sum = len(chapter_main)
+        #             # self.index_chapter_list[index][self.chapter_sum_slice] = chapter_sum
+        #             chapter_md5 = string_to_md5(self.index_chapter_id_list[index])
 
 
 class FanqieScraper(NovelScraper):
