@@ -45,7 +45,6 @@ class NovelScraper:
         self.SLEEP_TIME = self.cfg.SLEEP_TIME
         self.DATA_PATH = self.cfg.PATHS.DATA_PATH
         self.NOVELS_PATH = self.cfg.PATHS.NOVELS_PATH
-        self.NOVELS_NEW_PATH = self.cfg.PATHS.NOVELS_NEW_PATH
         self.LOGS_PATH = self.cfg.PATHS.LOGS_PATH
         self.POSTERS_PATH = self.cfg.PATHS.POSTERS_PATH
         self.DB_PATH = self.cfg.PATHS.DB_PATH

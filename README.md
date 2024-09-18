@@ -82,6 +82,21 @@
 2. 解压
 3. 运行`ILP-ubuntu-latest-{commit-id} --help`获取帮助
 
+## 配置
+```json
+{
+    "PATHS": {                             // 路径配置
+        "DATA_PATH": "./data",             // 总数据目录
+        "NOVELS_PATH": "novels",           // 小说数据目录
+        "LOGS_PATH": "logs",               // 日志目录
+        "POSTERS_PATH": "posters",         // 封面图片目录
+        "DB_PATH": "cache.db"              // 数据库文件路径
+    },
+    "MAX_WORKERS": 7,                      // 最大协程数(最好不要大于10)
+    "SLEEP_TIME": 5,                       // 请求间隔(最好不要小于3)
+}
+```
+
 ## 注意事项
 - 请不要滥用本程序，且用且珍惜
 - 用户使用本程序造成的一切后果请自行承担

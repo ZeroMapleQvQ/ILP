@@ -1,0 +1,1 @@
+sites = ["fanqie", "qidian"]

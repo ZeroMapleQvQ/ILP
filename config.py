@@ -39,35 +39,34 @@ class Config:
         DATA_PATH = Path(self.PATHS.DATA_PATH)
         LOGS_PATH = Path(self.PATHS.LOGS_PATH)
         NOVELS_PATH = Path(self.PATHS.NOVELS_PATH)
-        NOVELS_NEW_PATH = Path(self.PATHS.NOVELS_NEW_PATH)
         POSTERS_PATH = Path(self.PATHS.POSTERS_PATH)
         DB_PATH = Path(self.PATHS.DB_PATH)
         self.PATHS.DATA_PATH = DATA_PATH
         self.PATHS.LOGS_PATH = DATA_PATH / LOGS_PATH
         self.PATHS.NOVELS_PATH = DATA_PATH / NOVELS_PATH
-        self.PATHS.NOVELS_NEW_PATH = DATA_PATH / NOVELS_NEW_PATH
         self.PATHS.POSTERS_PATH = DATA_PATH / POSTERS_PATH
         self.PATHS.DB_PATH = DB_PATH
 
         self.PATHS.DATA_PATH.mkdir(exist_ok=True)
         self.PATHS.LOGS_PATH.mkdir(exist_ok=True)
         self.PATHS.NOVELS_PATH.mkdir(exist_ok=True)
-        self.PATHS.NOVELS_NEW_PATH.mkdir(exist_ok=True)
         self.PATHS.POSTERS_PATH.mkdir(exist_ok=True)
+
+        from utils.config import sites
+
+        self.sites = sites
 
     def init_cfg(self):
         cfg_dict = {
             "PATHS": {
                 "DATA_PATH": "./data",
                 "NOVELS_PATH": "novels",
-                "NOVELS_NEW_PATH": "novels_new",
                 "LOGS_PATH": "logs",
                 "POSTERS_PATH": "posters",
                 "DB_PATH": "cache.db",
             },
             "MAX_WORKERS": 7,
-            "SLEEP_TIME": 0.2,
-            "sites": ["fanqie", "qidian"],
+            "SLEEP_TIME": 3,
         }
         with open(self.file_path, "w", encoding="utf-8") as f:
             f.write(json.dumps(cfg_dict, indent=4))
