@@ -16,6 +16,7 @@ dist/
 venv/
 .env
 
+*.html
 cache*
 spiders/
 data/

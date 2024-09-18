@@ -8,9 +8,8 @@ class DB:
     _local_data = threading.local()
 
     def __init__(self, db_name):
-        if not hasattr(DB._local_data, 'conn'):
-            DB._local_data.conn = sqlite3.connect(
-                db_name, check_same_thread=False)
+        if not hasattr(DB._local_data, "conn"):
+            DB._local_data.conn = sqlite3.connect(db_name, check_same_thread=False)
         self.conn = DB._local_data.conn
         self.cursor = self.conn.cursor()
 
@@ -28,7 +27,8 @@ class DB:
     def table_exists(self, table_name):
         try:
             self.cursor.execute(
-                f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
+                f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'"
+            )
             return self.cursor.fetchone() is not None
         except Exception:
             return False
@@ -59,7 +59,9 @@ class DB:
         sql = f"DROP TABLE {table_name}"
         self.execute_sql(sql)
 
-    def insert_data(self, table_name, md5_id, id, chapter_title, chapter_url, chapter_sum):
+    def insert_data(
+        self, table_name, md5_id, id, chapter_title, chapter_url, chapter_sum
+    ):
         sql = f"INSERT INTO '{
             table_name}' (md5_id, chapter_id, chapter_title, chapter_url, chapter_sum) VALUES (?, ?, ?, ?, ?)"
         params = (md5_id, id, chapter_title, chapter_url, chapter_sum)
@@ -76,7 +78,9 @@ class DB:
             print(f"An error occurred: {e}")
             return None
 
-    def update_data(self, table_name, column_name, new_value, condition_column, condition_value):
+    def update_data(
+        self, table_name, column_name, new_value, condition_column, condition_value
+    ):
         if not self.table_exists(table_name):
             return
         sql = f"UPDATE '{table_name}' SET {
@@ -100,29 +104,43 @@ class DB:
         if not self.table_exists(table_name):
             return
         data = self.get_all_data(table_name)
-        if file_type == "csv":
-            with open(file_path, "w", newline="", encoding="utf-8") as f:
-                csv_writer = csv.writer(f)
-                csv_writer.writerow(
-                    ['md5_id', 'chapter_id', 'chapter_title', 'chapter_url', 'chapter_sum'])
-                for row in data:
-                    csv_writer.writerow(row)
-        elif file_type == "json":
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(json.dumps(data, ensure_ascii=False, indent=4))
-        else:
-            print("文件类型不支持")
+        match file_type:
+            case "csv":
+                with open(file_path, "w", newline="", encoding="utf-8") as f:
+                    csv_writer = csv.writer(f)
+                    csv_writer.writerow(
+                        [
+                            "md5_id",
+                            "chapter_id",
+                            "chapter_title",
+                            "chapter_url",
+                            "chapter_sum",
+                        ]
+                    )
+                    for row in data:
+                        csv_writer.writerow(row)
+            case "json":
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(json.dumps(data, ensure_ascii=False, indent=4))
+            case "html":
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write("<table>\n")
+                    f.write(
+                        "<tr><th>md5_id</th><th>chapter_id</th><th>chapter_title</th><th>chapter_url</th><th>chapter_sum</th></tr>\n"
+                    )
+                    for row in data:
+                        f.write(
+                            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td>".format(
+                                row[0], row[1], row[2], row[3], row[4]
+                            )
+                        )
+                    f.write("</table>")
+            case _:
+                print("文件类型不支持")
 
     @staticmethod
     def close_all_connections():
         # 关闭所有线程的数据库连接
-        if hasattr(DB._local_data, 'conn'):
+        if hasattr(DB._local_data, "conn"):
             DB._local_data.conn.close()
             del DB._local_data.conn
-
-
-if __name__ == '__main__':
-    db = DB("cache.db")
-    db.create_table("变成女孩子在惊悚世界不想再社恐")
-    # db.insert_data("变成女孩子在惊悚世界不想再社恐", 0, "11", "22", None)
-    # print(db.table_exists("变成女孩子在惊悚世界不想再社恐"))

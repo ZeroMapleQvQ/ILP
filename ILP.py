@@ -7,7 +7,7 @@
 """
 
 import re
-import time
+import json
 import click
 import asyncio
 import aiohttp
@@ -145,6 +145,20 @@ class NovelScraper:
         with open(f"{final_path}", "w", encoding="utf-8") as f:
             f.write(chapter)
 
+    def parse_chapter(
+        self, chapter_response: str, chapter_title: str, index: int
+    ) -> str:
+        """解析章节内容并保存"""
+
+    def fetch_chapter_callback(self, future) -> None:
+        """下载章节回调函数"""
+        self.progress_bar.update(1)
+        result = future.result()
+        chapter_response = result["chapter_response"]
+        index = result["index"]
+        chapter_title = self.download_list[index]
+        self.parse_chapter(chapter_response, chapter_title, index)
+
     async def get_chapter(self) -> None:
         """利用协程获取所有未下载的章节"""
         self.get_index()
@@ -164,8 +178,21 @@ class NovelScraper:
         )
         self.progress_bar.update(0)
 
-        tasks = [self.fetch_chapter(i) for i in range(download_length)]
+        tasks = []
+        for i in range(download_length):
+            task = asyncio.create_task(self.fetch_chapter(i))
+            task.add_done_callback(self.fetch_chapter_callback)
+            tasks.append(task)
+        # tasks = [self.fetch_chapter(i) for i in range(download_length)]
         await asyncio.gather(*tasks)
+
+    async def async_get(self, url: str, headers=None, cookies=None) -> str:
+        async with self.sem:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url, headers=headers, cookies=cookies
+                ) as response:
+                    return await response.text()
 
     async def fetch_chapter(self, index: int) -> None:
         """获取单个章节"""
@@ -301,14 +328,6 @@ class QidianScraper(NovelScraper):
                     cookies=self.cookies,
                 ) as response:
                     chapter_get = await response.text()
-                    output_front = (
-                        "(" + str(index + 1) + "/" + str(self.download_length) + ")"
-                    )
-                    output_behind = (
-                        "正在下载：" + self.title + ":" + chapter_title + " 中..."
-                    )
-                    # print("{:<15} {:}".format(output_front, output_behind))
-                    tqdm.write("{:<15} {:}".format(output_front, output_behind))
                     self.logger.info(f"开始下载：{self.title}:{chapter_title}")
 
                     soup = BeautifulSoup(chapter_get, "html.parser")
@@ -415,54 +434,39 @@ class FanqieScraper(NovelScraper):
         self.author = soup.find("span", class_="author-name-text").text
         return self.author
 
+    def parse_chapter(
+        self, chapter_response: str, chapter_title: str, index: int
+    ) -> None:
+        db = DB(self.DB_PATH)
+
+        chapter_response = json.loads(chapter_response)
+        chapter_main = re.sub(r"(<.*?>)+", "\n", chapter_response["data"]["content"])
+        chapter_head = chapter_title + "\n---\n\n"
+        chapter_sum = chapter_response["data"]["novel_data"]["word_number"]
+        chapter_md5 = string_to_md5(self.index_chapter_id_list[index])
+        self.save_novel(self.title, chapter_head + chapter_main, chapter_title)
+        self.logger.info(f"下载完成：{self.title}:{chapter_title}")
+
+        db.update_data(self.title, "chapter_sum", chapter_sum, "md5_id", chapter_md5)
+
+        del db
+
     async def fetch_chapter(self, index: int) -> None:
         await super().fetch_chapter(index)
 
-        chapter_title = self.download_list[index]
+        response = await self.async_get(
+            url=f"{self.chapter_api_url}{self.index_chapter_id_list[index]}",
+            headers=self.HEADERS,
+            cookies=self.cookies,
+        )
 
-        from utils.fanqie_decode import dec
-
-        db = DB(self.DB_PATH)
-
-        async with self.sem:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{self.chapter_api_url}{self.index_chapter_id_list[index]}",
-                    headers=self.HEADERS,
-                    cookies=self.cookies,
-                ) as response:
-                    output_front = (
-                        "(" + str(index + 1) + "/" + str(self.download_length) + ")"
-                    )
-                    output_behind = (
-                        "正在下载：" + self.title + ":" + chapter_title + " 中..."
-                    )
-                    tqdm.write("{:<15} {:}".format(output_front, output_behind))
-                    # print("{:<15} {:}".format(output_front, output_behind))
-                    self.logger.info(f"开始下载：{self.title}:{chapter_title}")
-                    chapter_json = await response.json()
-                    chapter_main = re.sub(
-                        r"(<.*?>)+", "\n", chapter_json["data"]["content"]
-                    )
-                    chapter_main = re.sub(r"\u3000", r"", chapter_main)
-                    chapter_head = chapter_title + "\n---\n\n"
-                    chapter_sum = len(chapter_main)
-                    chapter_md5 = string_to_md5(self.index_chapter_id_list[index])
-                    db.update_data(
-                        self.title, "chapter_sum", chapter_sum, "md5_id", chapter_md5
-                    )
-                    self.save_novel(
-                        self.title, chapter_head + chapter_main, chapter_title
-                    )
-                    await dec(
-                        chapter_title=chapter_title,
-                        title=self.title,
-                        log_path=self.LOGS_PATH,
-                        novels_path=self.NOVELS_PATH,
-                        novels_new_path=self.NOVELS_PATH,
-                    )
-                    self.progress_bar.update(1)
-                    time.sleep(self.SLEEP_TIME)
+        chapter_response = response
+        asyncio.sleep(self.SLEEP_TIME)
+        return {
+            "chapter_response": chapter_response,
+            "index": index,
+            "chapter_title": self.index_chapter_title_list[index],
+        }
 
 
 cfg = Config("./config.json")
@@ -537,7 +541,7 @@ def decode(**kwargs):
     "-ot",
     default=None,
     help="输出格式",
-    type=click.Choice(["txt", "json", "csv"]),
+    type=click.Choice(["html", "json", "csv"]),
 )
 def get_index(**kwargs):
     executor = Exec(kwargs=kwargs)
