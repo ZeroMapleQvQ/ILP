@@ -22,6 +22,7 @@ class FanqieScraper(BaseScraper):
         self.index_page_text = self.get_index_page()
 
     def get_title(self):
+        super().get_title()
         if self.title is None:
             json_data = requests.get(
                 f"https://api5-normal-sinfonlineb.fqnovel.com/reading/bookapi/multi-detail/v/?aid=1967&iid=1&version_code=999&book_id={self.id}",

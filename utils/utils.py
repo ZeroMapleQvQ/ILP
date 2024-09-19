@@ -94,6 +94,7 @@ def create_scraper_instance(
     scraper = scraper_dict[site_name]
     scraper.set_id(book_id)
     scraper.set_cookies(cookies)
+    scraper.set_logger()
     return scraper_dict[site_name]
 
 

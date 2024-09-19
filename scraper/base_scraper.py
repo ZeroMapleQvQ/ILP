@@ -61,10 +61,12 @@ class BaseScraper:
         self.executor = None
         self.sem = asyncio.Semaphore(self.MAX_WORKERS)
 
-        self.logger = Logger(f"{self.LOGS_PATH}/{self.id}.log")
+        # self.logger = Logger(f"{self.LOGS_PATH}/{self.id}.log")
 
     def set_id(self, book_id: int) -> None:
         self.id = book_id
+
+    def set_logger(self):
         self.logger = Logger(f"{self.LOGS_PATH}/{self.id}.log")
 
     def set_cookies(self, cookies: str) -> None:
@@ -88,6 +90,8 @@ class BaseScraper:
 
     def get_title(self):
         """获取小说标题"""
+        if self.id is None:
+            raise ValueError("请设置小说ID！")
 
     def get_index(self):
         """获取小说目录"""

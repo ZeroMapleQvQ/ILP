@@ -25,6 +25,7 @@ class QidianScraper(BaseScraper):
         return self.title_page_text
 
     def get_title(self):
+        super().get_title()
         if self.title is None:
             soup = BeautifulSoup(self.title_page_text, "html.parser")
             self.title = soup.find("h1").text
