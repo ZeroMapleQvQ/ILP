@@ -52,10 +52,6 @@ class Config:
         self.PATHS.NOVELS_PATH.mkdir(exist_ok=True)
         self.PATHS.POSTERS_PATH.mkdir(exist_ok=True)
 
-        from utils.config import sites
-
-        self.sites = sites
-
     def init_cfg(self):
         cfg_dict = {
             "PATHS": {
