@@ -55,14 +55,23 @@ class FanqieScraper(BaseScraper):
                         chapter_url,
                         None,
                     )
-                    self.index_chapter_md5_id_list.append(chapter_md5_id)
-                    self.index_chapter_id_list.append(chapter_id)
-                    self.index_chapter_title_list.append(chapter_title)
-                    self.index_chapter_url_list.append(chapter_url)
-                    self.index_chapter_sum_list.append(None)
+                    # self.index_chapter_md5_id_list.append(chapter_md5_id)
+                    # self.index_chapter_id_list.append(chapter_id)
+                    # self.index_chapter_title_list.append(chapter_title)
+                    # self.index_chapter_url_list.append(chapter_url)
+                    # self.index_chapter_sum_list.append(None)
                     self.index_chapter_list.append(
-                        [chapter_md5_id, chapter_id, chapter_title, chapter_url, None]
+                        {
+                            "md5_id": chapter_md5_id,
+                            "id": chapter_id,
+                            "title": chapter_title,
+                            "url": chapter_url,
+                            "sum": None,
+                        }
                     )
+                    # self.index_chapter_list.append(
+                    #     [chapter_md5_id, chapter_id, chapter_title, chapter_url, None]
+                    # )
         elif self.db.is_table_empty(self.title) is None:
             return []
         elif not self.db.is_table_empty(self.title):
@@ -73,20 +82,29 @@ class FanqieScraper(BaseScraper):
                 chapter_url = data[self.chapter_url_slice][0]
                 chapter_sum = data[self.chapter_sum_slice][0]
                 chapter_id = data[self.chapter_id_slice][0]
-                self.index_chapter_md5_id_list.append(chapter_md5_id)
-                self.index_chapter_id_list.append(chapter_id)
-                self.index_chapter_title_list.append(chapter_title)
-                self.index_chapter_url_list.append(chapter_url)
-                self.index_chapter_sum_list.append(chapter_sum)
+                # self.index_chapter_md5_id_list.append(chapter_md5_id)
+                # self.index_chapter_id_list.append(chapter_id)
+                # self.index_chapter_title_list.append(chapter_title)
+                # self.index_chapter_url_list.append(chapter_url)
+                # self.index_chapter_sum_list.append(chapter_sum)
                 self.index_chapter_list.append(
-                    [
-                        chapter_md5_id,
-                        chapter_id,
-                        chapter_title,
-                        chapter_url,
-                        chapter_sum,
-                    ]
+                    {
+                        "md5_id": chapter_md5_id,
+                        "id": chapter_id,
+                        "title": chapter_title,
+                        "url": chapter_url,
+                        "sum": chapter_sum,
+                    }
                 )
+                # self.index_chapter_list.append(
+                #     [
+                #         chapter_md5_id,
+                #         chapter_id,
+                #         chapter_title,
+                #         chapter_url,
+                #         chapter_sum,
+                #     ]
+                # )
         if export_path is not None and export_type is not None:
             self.db.export_data(self.title, export_path, export_type)
         return self.index_chapter_list
@@ -106,7 +124,7 @@ class FanqieScraper(BaseScraper):
         chapter_main = re.sub(r"(<.*?>)+", "\n", chapter_response["data"]["content"])
         chapter_head = chapter_title + "\n---\n\n"
         chapter_sum = chapter_response["data"]["novel_data"]["word_number"]
-        chapter_md5 = string_to_md5(self.index_chapter_id_list[index])
+        chapter_md5 = string_to_md5(self.index_chapter_list[index]["id"])
         self.save_novel(self.title, chapter_head + chapter_main, chapter_title)
         self.logger.info(f"下载完成：{self.title}:{chapter_title}")
 
@@ -114,11 +132,12 @@ class FanqieScraper(BaseScraper):
 
         del db
 
-    async def fetch_chapter(self, index: int) -> None:
-        await super().fetch_chapter(index)
+    async def fetch_chapter(self, index: int) -> dict:
+        if await super().fetch_chapter(index):
+            return {"status": "downloaded"}
 
         response = await self.async_get(
-            url=f"{self.chapter_api_url}{self.index_chapter_id_list[index]}",
+            url=f"{self.chapter_api_url}{self.index_chapter_list[index]["id"]}",
             headers=self.HEADERS,
             cookies=self.cookies,
         )
@@ -126,7 +145,8 @@ class FanqieScraper(BaseScraper):
         chapter_response = response
         time.sleep(self.SLEEP_TIME)
         return {
+            "status": "success",
             "chapter_response": chapter_response,
             "index": index,
-            "chapter_title": self.index_chapter_title_list[index],
+            "chapter_title": self.index_chapter_list[index]["title"],
         }

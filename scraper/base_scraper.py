@@ -38,6 +38,7 @@ class BaseScraper:
 
         self.author: str = ""
         self.index_chapter_list = []
+        self.index_chapter_dict = {}
         self.index_chapter_md5_id_list = []
         self.index_chapter_id_list = []
         self.index_chapter_title_list = []
@@ -52,8 +53,6 @@ class BaseScraper:
 
         self.index_page_text: str = ""
         self.HEADERS = {"User-Agent": fake_useragent.UserAgent().random}
-        if cookies is not None:
-            cookies = cookie_parser(cookies)
         self.cookies = cookies
 
         # self.thread_lock = threading.Lock()
@@ -126,7 +125,7 @@ class BaseScraper:
         self.get_index()
         path = Path(f"{self.NOVELS_PATH}/{self.title}")
         if path.exists() and len(list(path.glob("*.txt"))) == len(
-            self.index_chapter_title_list
+            self.index_chapter_list
         ):
             return True
         else:
@@ -149,18 +148,26 @@ class BaseScraper:
 
     def fetch_chapter_callback(self, future) -> None:
         """下载章节回调函数"""
-        self.progress_bar.update(1)
-        result = future.result()
-        chapter_response = result["chapter_response"]
-        index = result["index"]
-        chapter_title = self.download_list[index]
-        self.parse_chapter(chapter_response, chapter_title, index)
+        try:
+            self.progress_bar.update(1)
+            result = future.result()
+            status = result["status"]
+            match status:
+                case "success":
+                    chapter_response = result["chapter_response"]
+                    index = result["index"]
+                    chapter_title = self.download_list[index]["title"]
+                    self.parse_chapter(chapter_response, chapter_title, index)
+                case "downloaded":
+                    return
+        except asyncio.CancelledError:
+            pass
 
     async def get_chapter(self) -> None:
         """利用协程获取所有未下载的章节"""
         self.get_index()
 
-        download_list = self.index_chapter_title_list
+        download_list = self.index_chapter_list
         download_length = len(download_list)
         self.download_length = download_length
         self.download_list = download_list
@@ -182,6 +189,8 @@ class BaseScraper:
             tasks.append(task)
         # tasks = [self.fetch_chapter(i) for i in range(download_length)]
         await asyncio.gather(*tasks)
+        # for completed in asyncio.as_completed(tasks):
+        #     await completed
 
     async def async_get(self, url: str, headers=None, cookies=None) -> str:
         async with self.sem:
@@ -191,11 +200,11 @@ class BaseScraper:
                 ) as response:
                     return await response.text()
 
-    async def fetch_chapter(self, index: int) -> None:
+    async def fetch_chapter(self, index: int) -> None | bool:
         """获取单个章节"""
-        chapter_title = self.download_list[index]
+        chapter_title = self.download_list[index]["title"]
         set_title(f"ILP - {self.title} - {chapter_title}")
         if self.is_downloaded(chapter_title):
             self.logger.info(f"已经下载：{self.title}:{chapter_title}")
             self.progress_bar.update(1)
-            return
+            return True
