@@ -86,12 +86,13 @@ class SharedData(metaclass=SingletonMeta):
 
 
 def create_scraper_instance(
-    site_name: str, book_id: int, alias: str = None, cookies=None
+    site_name: str, book_id: int, alias: str = None, cookies=None, debug=False
 ):
     load_plugins()
     shared_data = SharedData()
     scraper_dict = shared_data.get_data("scrapers")
     scraper = scraper_dict[site_name]
+    scraper.set_debug(debug)
     scraper.set_id(book_id)
     scraper.set_cookies(cookies)
     scraper.set_logger()

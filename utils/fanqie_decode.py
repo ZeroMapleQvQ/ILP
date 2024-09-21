@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from log import Logger
 from utils.map import ascii_map
@@ -21,6 +22,7 @@ async def dec(
     log_path="./logs",
     novels_path="./novels",
     novels_new_path="./novels_new",
+    debug=False,
 ):
     new_context = []
     # context = []
@@ -42,7 +44,10 @@ async def dec(
     old_path.mkdir(exist_ok=True)
     new_path.mkdir(exist_ok=True)
 
-    logger = Logger(f"{log_path}/{title}.log")
+    if debug:
+        logger = Logger.get_logger(f"{log_path}/{title}.log", log_level=logging.DEBUG)
+    else:
+        logger = Logger.get_logger(f"{log_path}/{title}.log")
     # print(title)
     # print(f"{title}:{content_title} 转码中...")
     logger.info(f"开始转码：{title}:{chapter_title}")

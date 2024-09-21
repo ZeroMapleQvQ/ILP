@@ -15,11 +15,16 @@ from utils.utils import SharedData, cookie_parser, set_title
 class BaseScraper:
     """爬虫基类"""
 
-    def __init__(self, book_id: int = None, alias=None, cookies=None) -> None:
+    def __init__(
+        self, book_id: int = None, alias=None, cookies=None, debug=False
+    ) -> None:
         self.shared_data = SharedData()
+
+        self.debug = debug
 
         logging.getLogger("requests").setLevel(logging.ERROR)
         logging.getLogger("urllib3").setLevel(logging.ERROR)
+        logging.getLogger("asyncio").setLevel(logging.ERROR)
 
         self.cfg = Config("./config.json")
         self.MAX_WORKERS = self.cfg.MAX_WORKERS
@@ -66,7 +71,17 @@ class BaseScraper:
         self.id = book_id
 
     def set_logger(self):
-        self.logger = Logger(f"{self.LOGS_PATH}/{self.id}.log")
+        if self.debug:
+            self.logger = Logger.get_logger(
+                f"{self.LOGS_PATH}/{self.id}.log", logging.DEBUG
+            )
+            return
+        self.logger = Logger.get_logger(
+            f"{self.LOGS_PATH}/{self.id}.log", logging.ERROR
+        )
+
+    def set_debug(self, debug: bool) -> None:
+        self.debug = debug
 
     def set_cookies(self, cookies: str) -> None:
         self.cookies = cookie_parser(cookies)
@@ -149,11 +164,12 @@ class BaseScraper:
     def fetch_chapter_callback(self, future) -> None:
         """下载章节回调函数"""
         try:
-            self.progress_bar.update(1)
+            # self.progress_bar.set_description_str(f"{self.title} - 下载进度")
             result = future.result()
             status = result["status"]
             match status:
                 case "success":
+                    self.progress_bar.update(1)
                     chapter_response = result["chapter_response"]
                     index = result["index"]
                     chapter_title = self.download_list[index]["title"]
@@ -187,10 +203,12 @@ class BaseScraper:
             task = asyncio.create_task(self.fetch_chapter(i))
             task.add_done_callback(self.fetch_chapter_callback)
             tasks.append(task)
-        # tasks = [self.fetch_chapter(i) for i in range(download_length)]
-        await asyncio.gather(*tasks)
-        # for completed in asyncio.as_completed(tasks):
-        #     await completed
+        try:
+            await asyncio.gather(*tasks)
+        except Exception as e:
+            self.logger.exception(e)
+        finally:
+            self.progress_bar.close()
 
     async def async_get(self, url: str, headers=None, cookies=None) -> str:
         async with self.sem:

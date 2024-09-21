@@ -8,7 +8,6 @@
 
 import click
 import asyncio
-from tqdm import tqdm
 from pathlib import Path
 
 from utils.fanqie_decode import dec
@@ -30,6 +29,7 @@ scrapers = SharedData().get_data("scrapers")
 
 
 @click.group()
+@click.option("--debug", "-d", is_flag=True, help="调试模式")
 def main(**kwargs) -> None:
     set_title()
     show_banner()
@@ -48,8 +48,13 @@ def main(**kwargs) -> None:
 )
 def download(**kwargs):
     global logger
+    ctx = click.get_current_context()
+    debug = ctx.parent.params.get("debug")
     scraper = create_scraper_instance(
-        site_name=kwargs["site"], book_id=kwargs["id"], cookies=kwargs["cookie"]
+        site_name=kwargs["site"],
+        book_id=kwargs["id"],
+        cookies=kwargs["cookie"],
+        debug=debug,
     )
     logger = scraper.get_logger()
     asyncio.run(scraper.get_chapter())
@@ -59,6 +64,8 @@ def download(**kwargs):
 @click.option("--title", "-t", default=None, required=True, help="小说标题")
 @click.option("--chapter_title", "-ct", default="all", help="小说章节标题,默认为全部")
 def decode(**kwargs):
+    ctx = click.get_current_context()
+    debug = ctx.parent.params.get("debug")
     if kwargs["chapter_title"] == "all":
         chapter_title_list = []
         file_list = Path(cfg.NOVELS_PATH / kwargs["title"]).glob("*.txt")
@@ -79,6 +86,7 @@ def decode(**kwargs):
             log_path=cfg.LOGS_PATH,
             novels_path=cfg.NOVELS_PATH,
             novels_new_path=cfg.NOVELS_PATH,
+            debug=debug,
         )
 
 
@@ -101,8 +109,13 @@ def decode(**kwargs):
     type=click.Choice(["html", "json", "csv"]),
 )
 def get_index(**kwargs):
+    ctx = click.get_current_context()
+    debug = ctx.parent.params.get("debug")
     scraper = create_scraper_instance(
-        site_name=kwargs["site"], book_id=kwargs["id"], cookies=kwargs["cookie"]
+        site_name=kwargs["site"],
+        book_id=kwargs["id"],
+        cookies=kwargs["cookie"],
+        debug=debug,
     )
     if kwargs["out_put_path"] is None and kwargs["out_put_type"] is None:
         scraper.get_index()
@@ -127,8 +140,13 @@ def get_index(**kwargs):
     type=click.Choice(scrapers),
 )
 def get_picture(**kwargs):
+    ctx = click.get_current_context()
+    debug = ctx.parent.params.get("debug")
     scraper = create_scraper_instance(
-        site_name=kwargs["site"], book_id=kwargs["id"], cookies=kwargs["cookie"]
+        site_name=kwargs["site"],
+        book_id=kwargs["id"],
+        cookies=kwargs["cookie"],
+        debug=debug,
     )
     picture_url = scraper.get_picture()
     print(f"封面地址: {picture_url}")
@@ -145,20 +163,17 @@ def get_picture(**kwargs):
     type=click.Choice(scrapers),
 )
 def get_author(**kwargs):
+    ctx = click.get_current_context()
+    debug = ctx.parent.params.get("debug")
     scraper = create_scraper_instance(
-        site_name=kwargs["site"], book_id=kwargs["id"], cookies=kwargs["cookie"]
+        site_name=kwargs["site"],
+        book_id=kwargs["id"],
+        cookies=kwargs["cookie"],
+        debug=debug,
     )
     author = scraper.get_author()
     print(f"作者: {author}")
 
 
 if __name__ == "__main__":
-    # %%
-    try:
-        main()
-    except KeyboardInterrupt:
-        tqdm.write("正在退出")
-    except Exception as e:
-        logger.exception(e)
-    # %%
-    # qidian = QidianScraper(1041092118)
+    main()
