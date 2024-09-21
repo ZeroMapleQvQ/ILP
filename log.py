@@ -3,7 +3,7 @@ import os
 
 
 class Logger:
-    def __init__(self, filepath):
+    def __init__(self, filepath=None):
         # filename = "C:\\log.txt"
         if filepath is None:
             filepath = os.path.join(os.path.dirname(__file__), "log.txt")
@@ -11,7 +11,7 @@ class Logger:
             level=logging.DEBUG,
             filename=filepath,
             filemode="a",
-            format="[%(levelname)s][%(asctime)s]: %(message)s",
+            format="[%(levelname)s][%(asctime)s][%(filename)s:%(lineno)d]: %(message)s",
             encoding="utf-8",
         )
         self.logger = logging.getLogger()
