@@ -58,7 +58,8 @@ class QidianScraper(BaseScraper):
 
             self.index_chapter_sum_list = [None for _ in self.index_chapter_title_list]
 
-            for i in range(len(self.index_chapter_title_list)):
+            # if self.
+            for i in range(len(self.index_chapter_list)):
                 chapter_md5_id = self.index_chapter_md5_id_list[i]
                 chapter_id = self.index_chapter_id_list[i]
                 chapter_title = self.index_chapter_title_list[i]
@@ -80,9 +81,6 @@ class QidianScraper(BaseScraper):
                         "sum": None,
                     }
                 )
-                # self.index_chapter_list.append(
-                #     [chapter_md5_id, chapter_id, chapter_title, chapter_url, None]
-                # )
         elif self.db.is_table_empty(self.title) is None:
             return []
         # 从数据库中获取缓存
@@ -108,15 +106,6 @@ class QidianScraper(BaseScraper):
                         "sum": chapter_sum,
                     }
                 )
-                # self.index_chapter_list.append(
-                #     [
-                #         chapter_md5_id,
-                #         chapter_id,
-                #         chapter_title,
-                #         chapter_url,
-                #         chapter_sum,
-                #     ]
-                # )
         if export_path is not None and export_type is not None:
             self.db.export_data(self.title, export_path, export_type)
         return self.index_chapter_list

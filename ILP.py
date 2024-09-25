@@ -53,7 +53,7 @@ def download(**kwargs):
     scraper = create_scraper_instance(
         site_name=kwargs["site"],
         book_id=kwargs["id"],
-        cookies=kwargs["cookie"],
+        cookies=kwargs.get("cookie", None),
         debug=debug,
     )
     logger = scraper.get_logger()
@@ -114,7 +114,7 @@ def get_index(**kwargs):
     scraper = create_scraper_instance(
         site_name=kwargs["site"],
         book_id=kwargs["id"],
-        cookies=kwargs["cookie"],
+        cookies=kwargs.get("cookie", None),
         debug=debug,
     )
     if kwargs["out_put_path"] is None and kwargs["out_put_type"] is None:
@@ -145,7 +145,7 @@ def get_picture(**kwargs):
     scraper = create_scraper_instance(
         site_name=kwargs["site"],
         book_id=kwargs["id"],
-        cookies=kwargs["cookie"],
+        cookies=kwargs.get("cookie", None),
         debug=debug,
     )
     picture_url = scraper.get_picture()
@@ -168,7 +168,7 @@ def get_author(**kwargs):
     scraper = create_scraper_instance(
         site_name=kwargs["site"],
         book_id=kwargs["id"],
-        cookies=kwargs["cookie"],
+        cookies=kwargs.get("cookie", None),
         debug=debug,
     )
     author = scraper.get_author()

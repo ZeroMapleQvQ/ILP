@@ -55,11 +55,6 @@ class FanqieScraper(BaseScraper):
                         chapter_url,
                         None,
                     )
-                    # self.index_chapter_md5_id_list.append(chapter_md5_id)
-                    # self.index_chapter_id_list.append(chapter_id)
-                    # self.index_chapter_title_list.append(chapter_title)
-                    # self.index_chapter_url_list.append(chapter_url)
-                    # self.index_chapter_sum_list.append(None)
                     self.index_chapter_list.append(
                         {
                             "md5_id": chapter_md5_id,
@@ -69,9 +64,6 @@ class FanqieScraper(BaseScraper):
                             "sum": None,
                         }
                     )
-                    # self.index_chapter_list.append(
-                    #     [chapter_md5_id, chapter_id, chapter_title, chapter_url, None]
-                    # )
         elif self.db.is_table_empty(self.title) is None:
             return []
         elif not self.db.is_table_empty(self.title):
@@ -82,11 +74,6 @@ class FanqieScraper(BaseScraper):
                 chapter_url = data[self.chapter_url_slice][0]
                 chapter_sum = data[self.chapter_sum_slice][0]
                 chapter_id = data[self.chapter_id_slice][0]
-                # self.index_chapter_md5_id_list.append(chapter_md5_id)
-                # self.index_chapter_id_list.append(chapter_id)
-                # self.index_chapter_title_list.append(chapter_title)
-                # self.index_chapter_url_list.append(chapter_url)
-                # self.index_chapter_sum_list.append(chapter_sum)
                 self.index_chapter_list.append(
                     {
                         "md5_id": chapter_md5_id,
@@ -96,15 +83,6 @@ class FanqieScraper(BaseScraper):
                         "sum": chapter_sum,
                     }
                 )
-                # self.index_chapter_list.append(
-                #     [
-                #         chapter_md5_id,
-                #         chapter_id,
-                #         chapter_title,
-                #         chapter_url,
-                #         chapter_sum,
-                #     ]
-                # )
         if export_path is not None and export_type is not None:
             self.db.export_data(self.title, export_path, export_type)
         return self.index_chapter_list
